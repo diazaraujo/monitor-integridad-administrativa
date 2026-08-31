@@ -18052,9 +18052,22 @@ a.prediction-link:hover {
   flex-shrink: 0;
 }
 
-.service-status-item .status-name {
+.service-status-item .status-copy {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.service-status-item .status-name {
   color: var(--text);
+}
+
+.service-status-item .status-description {
+  color: var(--text-dim);
+  font-size: calc(9px * var(--wm-panel-effective-scale, 1));
+  line-height: 1.3;
 }
 
 .service-status-item .status-badge {

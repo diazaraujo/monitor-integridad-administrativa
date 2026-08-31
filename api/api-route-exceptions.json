@@ -566,6 +566,13 @@
       "removal_issue": null
     },
     {
+      "path": "api/integrity/patent-health.ts",
+      "category": "ops-admin",
+      "reason": "Credential-hiding health projection for the governed municipal-patent refresh worker. It exposes bounded operator status and release metadata to the specialized service-status panel; it does not expose patent records or define a product data API.",
+      "owner": "@SebastienMelki",
+      "removal_issue": null
+    },
+    {
       "path": "api/version.js",
       "category": "ops-admin",
       "reason": "Build-version probe for the desktop auto-updater. Tiny plain-JSON operator plumbing.",

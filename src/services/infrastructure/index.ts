@@ -13,6 +13,7 @@ import { createCircuitBreaker } from '@/utils/circuit-breaker';
 import { isFeatureAvailable } from '../runtime-config';
 import { getHydratedData } from '@/services/bootstrap';
 import { InfrastructureServiceClient } from '@/services/generated-rpc-clients';
+import { fetchCommercialLicenseHealth } from '@/services/commercial-license-health';
 
 // ---- Client + Circuit Breakers ----
 
@@ -202,13 +203,29 @@ function computeSummary(services: ServiceStatusResult[]): ServiceStatusSummary {
   };
 }
 
+async function appendCommercialLicenseHealth(
+  services: ServiceStatusResult[],
+): Promise<ServiceStatusResult[]> {
+  try {
+    return [...services, await fetchCommercialLicenseHealth()];
+  } catch {
+    return [...services, {
+      id: 'municipal-commercial-licenses',
+      name: 'Actualización de patentes municipales',
+      category: 'dev',
+      status: 'outage',
+      description: 'No fue posible verificar la actualización gobernada',
+    }];
+  }
+}
+
 export async function fetchServiceStatuses(): Promise<ServiceStatusResponse> {
   const hydrated = getHydratedData('serviceStatuses') as ListServiceStatusesResponse | undefined;
   if (hydrated?.statuses?.length) {
     // Warm the breaker under the same key a later recurring call reads (#7048);
     // a bare return drained the consume-once slot and forced a refetch.
     statusBreaker.recordSuccess(hydrated);
-    const services = hydrated.statuses.map(toServiceResult);
+    const services = await appendCommercialLicenseHealth(hydrated.statuses.map(toServiceResult));
     return { success: true, timestamp: new Date().toISOString(), summary: computeSummary(services), services };
   }
 
@@ -218,7 +235,7 @@ export async function fetchServiceStatuses(): Promise<ServiceStatusResponse> {
     });
   }, emptyStatusFallback, { shouldCache: (r) => r.statuses.length > 0 });
 
-  const services = resp.statuses.map(toServiceResult);
+  const services = await appendCommercialLicenseHealth(resp.statuses.map(toServiceResult));
 
   return {
     success: true,

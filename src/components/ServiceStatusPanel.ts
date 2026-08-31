@@ -136,7 +136,12 @@ export class ServiceStatusPanel extends Panel {
     return services.map(service =>
       h('div', { className: `service-status-item ${service.status}` },
         h('span', { className: 'status-icon' }, this.getStatusIcon(service.status)),
-        h('span', { className: 'status-name' }, service.name),
+        h('span', { className: 'status-copy' },
+          h('span', { className: 'status-name' }, service.name),
+          service.description
+            ? h('span', { className: 'status-description' }, service.description)
+            : false,
+        ),
         h('span', { className: `status-badge ${service.status}` }, service.status.toUpperCase()),
       ),
     );

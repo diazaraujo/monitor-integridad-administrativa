@@ -126,6 +126,23 @@ function envelope() {
   return { metadata: metadata(), source_refs: [sourceRef()], limitations: [] };
 }
 
+function refresh(overrides: Record<string, unknown> = {}) {
+  return {
+    run_id: 'refresh-001',
+    trigger: 'scheduled',
+    status: 'success',
+    started_at: '2026-08-28T13:00:00Z',
+    completed_at: '2026-08-28T13:01:00Z',
+    discovery_status: 'success',
+    discovered_resources: 123,
+    candidate_resources: 104,
+    pending_releases: 0,
+    imported_releases: 0,
+    failed_releases: 0,
+    ...overrides,
+  };
+}
+
 function patentGet() {
   return {
     ...envelope(),
@@ -214,6 +231,7 @@ describe('commercial-licenses response contract', () => {
     });
     const coverage = parsePatentCoverageResponse({
       ...envelope(),
+      refresh: refresh(),
       coverage: [{
         municipality_cut: '13101',
         period_from: '2021-01-01',
@@ -236,7 +254,23 @@ describe('commercial-licenses response contract', () => {
     expect(timeline.events).toHaveLength(1);
     expect(search.items).toHaveLength(1);
     expect(coverage.coverage[0].received_records).toBe(10);
+    expect(coverage.refresh.candidate_resources).toBe(104);
     expect(resolved.selected_candidate_id).toBe('candidate-001');
+  });
+
+  test('accepts never_run and rejects contradictory refresh outcomes', () => {
+    const payload = {
+      ...envelope(),
+      refresh: { status: 'never_run' },
+      coverage: [],
+    };
+    expect(parsePatentCoverageResponse(payload).refresh.status).toBe('never_run');
+
+    payload.refresh = refresh({ status: 'success', failed_releases: 1 });
+    expect(() => parsePatentCoverageResponse(payload)).toThrowError(/failed_releases/);
+
+    payload.refresh = refresh({ status: 'failed', failed_releases: 0 });
+    expect(() => parsePatentCoverageResponse(payload)).toThrowError(/failed_releases/);
   });
 
   test('rejects unknown properties at every validated level', () => {
@@ -388,6 +422,7 @@ describe('commercial-licenses response contract', () => {
 
     const coverage = {
       ...envelope(),
+      refresh: refresh(),
       coverage: [{
         municipality_cut: '13101',
         period_from: '2026-08-28',
