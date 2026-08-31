@@ -253,7 +253,22 @@ export interface Coverage {
   gaps: Limitation[];
 }
 
+export interface CommercialLicenseRefreshStatus {
+  status: 'never_run' | 'running' | 'success' | 'partial' | 'failed';
+  run_id?: string;
+  trigger?: 'scheduled' | 'manual';
+  started_at?: string;
+  completed_at?: string | null;
+  discovery_status?: 'not_run' | 'skipped' | 'success' | 'failed';
+  discovered_resources?: number;
+  candidate_resources?: number;
+  pending_releases?: number;
+  imported_releases?: number;
+  failed_releases?: number;
+}
+
 export interface PatentCoverageResponse extends ResponseEnvelope {
+  refresh: CommercialLicenseRefreshStatus;
   coverage: Coverage[];
 }
 
@@ -763,11 +778,57 @@ function parseCoverage(value: unknown, path: string): Coverage {
   return result;
 }
 
+function parseRefreshStatus(value: unknown, path: string): CommercialLicenseRefreshStatus {
+  const fields = [
+    'run_id', 'trigger', 'started_at', 'completed_at', 'discovery_status',
+    'discovered_resources', 'candidate_resources', 'pending_releases',
+    'imported_releases', 'failed_releases',
+  ] as const;
+  const initial = strict(value, path, ['status'], fields);
+  const status = oneOf(initial.status, `${path}.status`, [
+    'never_run', 'running', 'success', 'partial', 'failed',
+  ]);
+  if (status === 'never_run') return { status };
+  const v = strict(value, path, ['status', ...fields]);
+  const result: CommercialLicenseRefreshStatus = {
+    status,
+    run_id: string(v.run_id, `${path}.run_id`),
+    trigger: oneOf(v.trigger, `${path}.trigger`, ['scheduled', 'manual'] as const),
+    started_at: dateTime(v.started_at, `${path}.started_at`),
+    completed_at: nullableDateTime(v.completed_at, `${path}.completed_at`),
+    discovery_status: oneOf(v.discovery_status, `${path}.discovery_status`, [
+      'not_run', 'skipped', 'success', 'failed',
+    ] as const),
+    discovered_resources: integer(v.discovered_resources, `${path}.discovered_resources`),
+    candidate_resources: integer(v.candidate_resources, `${path}.candidate_resources`),
+    pending_releases: integer(v.pending_releases, `${path}.pending_releases`),
+    imported_releases: integer(v.imported_releases, `${path}.imported_releases`),
+    failed_releases: integer(v.failed_releases, `${path}.failed_releases`),
+  };
+  if (status === 'running' && result.completed_at !== null) {
+    fail(`${path}.completed_at`, 'must be null while status is running');
+  }
+  if (status !== 'running' && result.completed_at === null) {
+    fail(`${path}.completed_at`, 'must be present after the run completes');
+  }
+  if (result.completed_at && result.started_at && result.started_at > result.completed_at) {
+    fail(path, 'started_at must not be after completed_at');
+  }
+  if (status === 'success' && result.failed_releases !== 0) {
+    fail(`${path}.failed_releases`, 'must be zero for a successful run');
+  }
+  if ((status === 'partial' || status === 'failed') && result.failed_releases === 0) {
+    fail(`${path}.failed_releases`, 'must be positive for a failed run');
+  }
+  return result;
+}
+
 export function parsePatentCoverageResponse(value: unknown): PatentCoverageResponse {
-  const v = strict(value, '$', ['metadata', 'coverage', 'source_refs', 'limitations']);
+  const v = strict(value, '$', ['metadata', 'refresh', 'coverage', 'source_refs', 'limitations']);
   const envelope = parseEnvelope(v, '$');
   const result: PatentCoverageResponse = {
     metadata: envelope.metadata,
+    refresh: parseRefreshStatus(v.refresh, '$.refresh'),
     coverage: array(v.coverage, '$.coverage', parseCoverage),
     source_refs: envelope.source_refs,
     limitations: envelope.limitations,
