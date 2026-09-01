@@ -1,0 +1,11 @@
+[Unit]
+Description=Deploy green monitor-integridad-administrativa main to Enigma
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/monitor-integridad-administrativa/deploy.env
+ExecStart=%h/.local/lib/monitor-integridad-autodeploy/deploy-enigma-monitor.sh
+TimeoutStartSec=45min
+

@@ -1,93 +1,152 @@
-# Plan de ejecución concatenado — Integridad administrativa
+# Plan de ejecución concatenado — caso Luis Cordero
 
 Fecha de corte: 2026-08-31
 Proyecto: `monitor-integridad-administrativa`
+Destino operacional: Enigma, contenedor `monitor-integridad-main`, puerto `8144`
 
-## Objetivo
+## Resultado buscado
 
-Validar un flujo especializado de revisión de patentes comerciales provisorias, desde releases
-municipales trazables hasta un outcome administrativo humano, sin convertir señales en decisiones
-automáticas ni duplicar la ingesta de Inteligencia Inmobiliaria.
+Una persona municipal debe poder revisar una patente comercial desde una cola hasta su cierre,
+con evidencia trazable, intervención humana y registro append-only. El producto materializa el
+enfoque administrativo discutido con Luis Cordero: usar facultades municipales ordinarias sobre
+patentes, permisos, fiscalización y actos, sin presentar una señal como delito ni automatizar una
+sanción.
 
-## Estado de entrada
+La prueba termina cuando el recorrido completo funciona en Enigma sin terminal ni acceso directo a
+la base de datos:
 
-- Inteligencia Inmobiliaria es el productor de `commercial-licenses` y de los cruces con
-  establecimiento y predio.
-- La actualización automática y el estado del último release bueno están operativos.
-- La gobernanza de nuevas fuentes municipales continúa en paralelo en el repositorio productor.
-- Este monitor ya dispone del cliente read-only, contratos de datos, `EvidencePacket`, apertura de
-  casos y health del productor.
-- La autoridad jurídica sigue siendo municipal; el monitor registra revisiones y outcomes.
+```text
+buscar patente
+  -> abrir revisión y fijar releases
+  -> construir EvidencePacket
+  -> asignar revisor
+  -> registrar análisis o pedir antecedente
+  -> recomendar inspección o derivación, si corresponde
+  -> registrar el acto externo autorizado
+  -> cerrar con outcome y auditoría
+```
 
-## Secuencia única
+## Contrato entre proyectos
 
-### 0. Base operativa — entregada
+- Inteligencia Inmobiliaria produce `commercial-licenses` y resuelve
+  establecimiento–dirección–rol–predio.
+- Los otros productores entregan identidad societaria, contexto municipal, ambiente, compras y
+  fundamento jurídico mediante capabilities read-only.
+- Este repositorio no vuelve a ingerir ni reparar esas fuentes. Fija los releases que recibió,
+  muestra sus gaps y continúa el workflow cuando la evidencia disponible permite una revisión.
+- Una ausencia upstream se representa como brecha de cobertura; nunca como incumplimiento.
+- Los datos públicos de patentes usados para fiscalización no abren un bloque adicional de
+  privacidad en este caso de uso. Las credenciales y notas operacionales internas sí permanecen
+  protegidas.
 
-**Recibe:** releases promovidos de patentes y capability read-only.
-**Entrega:** cliente validado, pinning de release, EvidencePacket reproducible y health operacional.
-**Gate:** ninguna reingesta en el consumidor y último release bueno visible.
+La cohorte histórica sigue siendo un instrumento de calidad del productor. Su baseline
+`0 reproduced / 7 insufficient_evidence / 13 failed` y el objetivo 16/20 no bloquean la entrega del
+workflow municipal: los productores pueden cerrar esas brechas en paralelo y el monitor consume
+los releases promovidos posteriores.
 
-### 1. Gobernanza de candidatos upstream — trabajo paralelo
+## Secuencia ejecutable
 
-**Responsable:** Inteligencia Inmobiliaria.
-**Trabajo:** convertir fuentes candidatas en canaries, aprobar calidad y promover sólo aquellas que
-cumplan sus contratos.
-**Entrega:** nuevos releases municipales gobernados.
-**Gate:** procedencia, contabilidad, cobertura, privacidad y rollback aprobados por el productor.
+### A. Base y contratos — entregado
 
-El monitor no modifica ni replica este trabajo. Consume únicamente releases promovidos.
+**Recibe:** releases promovidos de patentes.
 
-### 2. Cohorte histórica de patentes provisorias — en curso
+**Entrega:** cliente `commercial-licenses`, pinning de release, contratos temporales,
+`EvidencePacket`, health del productor y persistencia inicial de `ReviewCase`.
 
-**Recibe:** 20 identificadores fijados a release y fecha efectiva: 10 Purranque, 5 Lo Barnechea y
-5 Renca.
-**Trabajo:** construir los 20 EvidencePackets en modo read-only y clasificar cada caso como
-`reproduced`, `insufficient_evidence` o `failed`.
-**Entrega:** reporte reproducible con hashes, gaps y cero `ReviewCase` persistidos.
-**Gate:** al menos 16 de 20 casos reproducidos con evidencia suficiente.
+**Gate:** no hay reingesta en el consumidor; source refs, gaps y último release bueno son visibles.
 
-Un match predial ambiguo o no resuelto es un gap explícito. No se interpreta como incumplimiento.
+### B. Frontera HTTP operacional
 
-### 3. Cierre de brechas de evidencia
+**Recibe:** los servicios de dominio ya implementados.
 
-**Recibe:** baseline de la cohorte.
-**Trabajo:** devolver al productor las brechas de match, timeline o cobertura; volver a ejecutar
-exactamente la misma cohorte contra releases nuevos.
-**Entrega:** comparación entre releases y explicación de cada cambio de outcome.
-**Gate:** 16/20 reproducidos, sin expectativas modificadas para esconder fallas.
+**Trabajo:** exponer búsqueda/cola, apertura, lectura de expediente y asignación mediante handlers
+autenticados. La identidad y el rol se derivan en el servidor; el body no puede suplantar al actor.
 
-### 4. Actions, RBAC y auditoría en shadow
+**Entrega:** API probada para recorrer desde una patente hasta un caso asignado.
 
-**Recibe:** EvidencePackets que aprobaron el gate.
-**Trabajo:** probar asignación, solicitudes, explicaciones alternativas, recomendaciones,
-correcciones, registro de decisión oficial y cierre.
-**Entrega:** ledger append-only y matriz actor–objeto–propiedad–acción.
-**Gate:** ninguna Action adquiere una facultad municipal y toda transición tiene actor, fundamento,
-evidencia y reversa operacional.
+**Gate:** autorización por action, errores upstream explícitos, idempotencia y ningún acceso directo
+a tablas internas desde el cliente.
 
-### 5. Piloto vivo de provisorias
+### C. Actions, outcome y cierre
 
-**Recibe:** workflow shadow aprobado y municipio socio.
-**Trabajo:** operar una cohorte acotada con revisión humana, rectificación y derivación formal.
-**Entrega:** outcomes administrativos trazables y evaluación de carga, tiempos y falsos positivos.
-**Gate:** decisión de escala basada en outcomes, no en volumen de alertas.
+**Recibe:** un caso asignado con EvidencePacket fijado.
 
-## Reglas que atraviesan todos los bloques
+**Trabajo:** completar solicitud de antecedentes, corrección, explicación alternativa,
+recomendación de inspección/derivación, registro de decisión oficial y cierre.
 
-- Cada consumidor fija `producer`, `release_id`, `schema_version`, `data_as_of` y source refs.
-- La ausencia de un dato es una brecha de cobertura, no evidencia de incumplimiento.
-- Ningún caso histórico ejecuta Actions ni persiste expedientes operacionales.
-- La cohorte técnica contiene sólo identificadores fuente; no incorpora datos de titulares,
-  domicilios ni otros campos personales.
-- La promoción de nuevas fuentes permanece en Inteligencia Inmobiliaria.
-- El paso siguiente sólo comienza cuando el gate anterior queda medido y registrado.
+**Entrega:** ledger append-only con actor, fecha, fundamento, evidencia, transición y outcome.
 
-## Punto de control actual
+**Gate:** una recomendación nunca aparece como acto oficial; sólo un rol autorizado registra el
+acto externo y toda mutación rechazada deja el estado anterior intacto.
 
-El baseline v1 fue ejecutado: `0 reproduced`, `7 insufficient_evidence` y `13 failed`; el gate 16/20
-permanece fallido. Los veinte casos tienen match predial no resuelto; trece además carecen de un
-establecimiento vigente que permita representar esa resolución dentro del EvidencePacket.
+### D. Interfaz especializada
 
-El siguiente paso es entregar estas brechas al productor y repetir exactamente la misma cohorte
-sobre un nuevo release promovido. El detalle está en
-`reports/baseline-cohorte-patentes-provisorias-2026-08-31.md`.
+**Recibe:** la API operacional.
+
+**Trabajo:** construir cola, búsqueda, expediente, panel de acciones y timeline dentro de
+`monitor-integridad-administrativa`, sin modificar la experiencia del Chile Monitor genérico.
+
+**Entrega:** recorrido completo utilizable por Rentas, Control/Jurídica y fiscalización.
+
+**Gate:** estados de carga, degradación, ambigüedad y falta de evidencia son distinguibles; cada
+botón refleja la facultad del rol activo.
+
+### E. Persistencia y aceptación en Enigma
+
+**Recibe:** vertical funcional y configuración operacional.
+
+**Trabajo:** conectar la persistencia definitiva, ejecutar una patente provisoria de extremo a
+extremo, reiniciar el servicio y volver a leer el expediente.
+
+**Entrega:** evidencia de aceptación con `review_case_id`, releases, actions, outcome, SHA desplegado
+y resultado tras reinicio.
+
+**Gate:** el caso sobrevive al reinicio, su historia es reproducible y ninguna brecha upstream fue
+convertida silenciosamente en una certeza.
+
+### F. Autodeploy seguro — preparado en este cambio
+
+**Recibe:** un commit nuevo en `main`.
+
+**Trabajo:** un timer en Enigma consulta `main`; sólo continúa cuando el status `gate` del SHA es
+`success`. Construye una imagen inmutable, levanta un canary en loopback, prueba nginx + sidecar,
+reemplaza únicamente `monitor-integridad-main:8144` y conserva el contenedor previo como rollback.
+
+**Entrega:** SHA exacto desplegado y estado local auditable.
+
+**Gate:** un build, canary o smoke fallido mantiene/restaura la versión anterior. Vercel, el Chile
+Monitor genérico en `8142` y los contenedores productores quedan fuera del alcance.
+
+## Cadena de despliegue
+
+```text
+PR -> checks requeridos -> merge a main -> gate=success
+   -> timer Enigma -> fetch SHA -> build SHA
+   -> canary loopback -> health OK
+   -> cutover sólo 8144 -> smoke OK
+   -> conservar rollback + registrar deployed SHA
+```
+
+El autodeploy no necesita exponer SSH ni almacenar una llave de Enigma en GitHub. La máquina inicia
+la consulta desde su red privada. Si GitHub no responde, el gate está pendiente o la configuración
+local no existe, no hay despliegue.
+
+## Definition of Done
+
+- Un usuario municipal completa el flujo desde búsqueda hasta cierre desde la interfaz.
+- Cada expediente fija los releases y conserva evidencia, gaps y explicaciones alternativas.
+- El actor proviene de la sesión del servidor y RBAC cubre objeto y action.
+- Recomendaciones, actuaciones externas y outcomes son conceptos separados.
+- El ledger es append-only y el caso persiste después de reiniciar.
+- La caída de un productor muestra degradación o el último release bueno.
+- `main` verde se publica automáticamente sólo en Enigma `8144`.
+- El canary y el rollback fueron probados al menos una vez.
+- La evidencia final identifica commit, imagen y caso aceptado.
+
+## Orden inmediato
+
+1. Terminar B y C en el issue #23.
+2. Construir D sobre esos contratos, sin mocks que oculten gaps.
+3. Ejecutar E con una patente provisoria real disponible.
+4. Instalar una vez el agente descrito en `ops/enigma/README.md`.
+5. Fusionar únicamente con checks verdes; desde ese punto F opera automáticamente.
