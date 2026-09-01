@@ -1,0 +1,189 @@
+{
+  "schema_version": "0.1.0",
+  "cohort_id": "provisional-licenses-2026-08-31-v1",
+  "generated_at": "2026-08-31T21:55:00.000Z",
+  "purpose": "historical_provisional_license_reproduction",
+  "minimum_reproduced": 16,
+  "cases": [
+    {
+      "case_id": "hist-prov-purranque-01",
+      "municipality_cut": "10303",
+      "license_id": "5-000075",
+      "release_id": "purranque-2026-s1",
+      "effective_on": "2026-06-30",
+      "expected_provisional_status": "provisional",
+      "expected_parcel_match_status": "unresolved"
+    },
+    {
+      "case_id": "hist-prov-purranque-02",
+      "municipality_cut": "10303",
+      "license_id": "6-001537",
+      "release_id": "purranque-2026-s1",
+      "effective_on": "2026-06-30",
+      "expected_provisional_status": "provisional",
+      "expected_parcel_match_status": "unresolved"
+    },
+    {
+      "case_id": "hist-prov-purranque-03",
+      "municipality_cut": "10303",
+      "license_id": "6-001539",
+      "release_id": "purranque-2026-s1",
+      "effective_on": "2026-06-30",
+      "expected_provisional_status": "provisional",
+      "expected_parcel_match_status": "unresolved"
+    },
+    {
+      "case_id": "hist-prov-purranque-04",
+      "municipality_cut": "10303",
+      "license_id": "6-001540",
+      "release_id": "purranque-2026-s1",
+      "effective_on": "2026-06-30",
+      "expected_provisional_status": "provisional",
+      "expected_parcel_match_status": "unresolved"
+    },
+    {
+      "case_id": "hist-prov-purranque-05",
+      "municipality_cut": "10303",
+      "license_id": "6-001541",
+      "release_id": "purranque-2026-s1",
+      "effective_on": "2026-06-30",
+      "expected_provisional_status": "provisional",
+      "expected_parcel_match_status": "unresolved"
+    },
+    {
+      "case_id": "hist-prov-purranque-06",
+      "municipality_cut": "10303",
+      "license_id": "6-001542",
+      "release_id": "purranque-2026-s1",
+      "effective_on": "2026-06-30",
+      "expected_provisional_status": "provisional",
+      "expected_parcel_match_status": "unresolved"
+    },
+    {
+      "case_id": "hist-prov-purranque-07",
+      "municipality_cut": "10303",
+      "license_id": "6-001543",
+      "release_id": "purranque-2026-s1",
+      "effective_on": "2026-06-30",
+      "expected_provisional_status": "provisional",
+      "expected_parcel_match_status": "unresolved"
+    },
+    {
+      "case_id": "hist-prov-purranque-08",
+      "municipality_cut": "10303",
+      "license_id": "6-001544",
+      "release_id": "purranque-2026-s1",
+      "effective_on": "2026-06-30",
+      "expected_provisional_status": "provisional",
+      "expected_parcel_match_status": "unresolved"
+    },
+    {
+      "case_id": "hist-prov-purranque-09",
+      "municipality_cut": "10303",
+      "license_id": "6-001546",
+      "release_id": "purranque-2026-s1",
+      "effective_on": "2026-06-30",
+      "expected_provisional_status": "provisional",
+      "expected_parcel_match_status": "unresolved"
+    },
+    {
+      "case_id": "hist-prov-purranque-10",
+      "municipality_cut": "10303",
+      "license_id": "6-001547",
+      "release_id": "purranque-2026-s1",
+      "effective_on": "2026-06-30",
+      "expected_provisional_status": "provisional",
+      "expected_parcel_match_status": "unresolved"
+    },
+    {
+      "case_id": "hist-prov-lo-barnechea-01",
+      "municipality_cut": "13115",
+      "license_id": "7-092387",
+      "release_id": "lo-barnechea-2025-s1",
+      "effective_on": "2025-06-30",
+      "expected_provisional_status": "provisional",
+      "expected_parcel_match_status": "unresolved"
+    },
+    {
+      "case_id": "hist-prov-lo-barnechea-02",
+      "municipality_cut": "13115",
+      "license_id": "7-092395",
+      "release_id": "lo-barnechea-2025-s1",
+      "effective_on": "2025-06-30",
+      "expected_provisional_status": "provisional",
+      "expected_parcel_match_status": "unresolved"
+    },
+    {
+      "case_id": "hist-prov-lo-barnechea-03",
+      "municipality_cut": "13115",
+      "license_id": "7-092397",
+      "release_id": "lo-barnechea-2025-s1",
+      "effective_on": "2025-06-30",
+      "expected_provisional_status": "provisional",
+      "expected_parcel_match_status": "unresolved"
+    },
+    {
+      "case_id": "hist-prov-lo-barnechea-04",
+      "municipality_cut": "13115",
+      "license_id": "7-092422",
+      "release_id": "lo-barnechea-2025-s1",
+      "effective_on": "2025-06-30",
+      "expected_provisional_status": "provisional",
+      "expected_parcel_match_status": "unresolved"
+    },
+    {
+      "case_id": "hist-prov-lo-barnechea-05",
+      "municipality_cut": "13115",
+      "license_id": "7-092424",
+      "release_id": "lo-barnechea-2025-s1",
+      "effective_on": "2025-06-30",
+      "expected_provisional_status": "provisional",
+      "expected_parcel_match_status": "unresolved"
+    },
+    {
+      "case_id": "hist-prov-renca-01",
+      "municipality_cut": "13128",
+      "license_id": "2-007382",
+      "release_id": "renca-2026-s1",
+      "effective_on": "2026-06-30",
+      "expected_provisional_status": "provisional",
+      "expected_parcel_match_status": "unresolved"
+    },
+    {
+      "case_id": "hist-prov-renca-02",
+      "municipality_cut": "13128",
+      "license_id": "6-001753",
+      "release_id": "renca-2026-s1",
+      "effective_on": "2026-06-30",
+      "expected_provisional_status": "provisional",
+      "expected_parcel_match_status": "unresolved"
+    },
+    {
+      "case_id": "hist-prov-renca-03",
+      "municipality_cut": "13128",
+      "license_id": "6-001767",
+      "release_id": "renca-2026-s1",
+      "effective_on": "2026-06-30",
+      "expected_provisional_status": "provisional",
+      "expected_parcel_match_status": "unresolved"
+    },
+    {
+      "case_id": "hist-prov-renca-04",
+      "municipality_cut": "13128",
+      "license_id": "6-001772",
+      "release_id": "renca-2026-s1",
+      "effective_on": "2026-06-30",
+      "expected_provisional_status": "provisional",
+      "expected_parcel_match_status": "unresolved"
+    },
+    {
+      "case_id": "hist-prov-renca-05",
+      "municipality_cut": "13128",
+      "license_id": "6-001774",
+      "release_id": "renca-2026-s1",
+      "effective_on": "2026-06-30",
+      "expected_provisional_status": "provisional",
+      "expected_parcel_match_status": "unresolved"
+    }
+  ]
+}
