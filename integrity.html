@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Revisión municipal de patentes</title>
+    <script type="module" src="/src/integrity/main.ts"></script>
+  </head>
+  <body>
+    <main class="shell">
+      <header>
+        <p class="eyebrow">Integridad administrativa · acceso municipal</p>
+        <h1>Revisión de patentes comerciales</h1>
+        <p>La evidencia orienta la revisión. Las recomendaciones no constituyen decisiones oficiales.</p>
+      </header>
+
+      <section class="card" aria-labelledby="queue-title">
+        <div class="section-heading">
+          <div><span class="step">1</span><h2 id="queue-title">Cola municipal</h2></div>
+          <span id="release-state" class="badge">Sin consulta</span>
+        </div>
+        <form id="search-form" class="form-grid">
+          <label>Estado<input name="status" autocomplete="off" /></label>
+          <label>Tipo<input name="license_type" autocomplete="off" /></label>
+          <label>Actividad<input name="activity" autocomplete="off" /></label>
+          <label>Dirección<input name="address" autocomplete="off" /></label>
+          <label>Fecha efectiva<input name="effective_on" type="date" /></label>
+          <button type="submit">Buscar patentes</button>
+        </form>
+        <p id="queue-message" class="message" role="status"></p>
+        <div id="queue" class="queue" aria-live="polite"></div>
+      </section>
+
+      <section class="card" aria-labelledby="case-title">
+        <div class="section-heading">
+          <div><span class="step">2</span><h2 id="case-title">Expediente</h2></div>
+          <span id="case-state" class="badge">Ningún caso abierto</span>
+        </div>
+        <div id="case-empty" class="empty">Seleccione una patente y abra una revisión fijada al release consultado.</div>
+        <div id="case-content" hidden>
+          <dl id="case-facts" class="facts"></dl>
+          <div class="evidence-grid">
+            <article><h3>Brechas</h3><ul id="gaps"></ul></article>
+            <article><h3>Conflictos</h3><ul id="conflicts"></ul></article>
+          </div>
+          <form id="assign-form" class="inline-form">
+            <label>Asignar revisor<input name="reviewer_id" required autocomplete="off" /></label>
+            <button type="submit">Asignar</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="action-title">
+        <div class="section-heading"><div><span class="step">3</span><h2 id="action-title">Acción humana</h2></div></div>
+        <form id="action-form" class="form-grid">
+          <label>Acción<select id="action-form-action" name="action_type" required>
+            <option value="NoObservations">Sin observaciones</option>
+            <option value="RequestMissingRequirement">Solicitar antecedente</option>
+            <option value="RequestCorrection">Solicitar corrección</option>
+            <option value="RecordAlternativeExplanation">Registrar explicación alternativa</option>
+            <option value="RecommendInspection">Recomendar inspección</option>
+            <option value="RecommendReferral">Recomendar derivación</option>
+            <option value="RecordInspectionOutcome">Registrar resultado de inspección</option>
+            <option value="RecommendAdministrativeMeasure">Recomendar medida administrativa</option>
+            <option value="RecordOfficialDecision">Registrar decisión oficial</option>
+            <option value="CloseReview">Cerrar revisión</option>
+          </select></label>
+          <label class="wide">Fundamento<textarea name="note" rows="3" maxlength="4000"></textarea></label>
+          <label>Outcome oficial<input name="outcome_code" maxlength="100" /></label>
+          <label>Referencia del acto<input name="external_reference" maxlength="500" /></label>
+          <button id="record-action" type="submit">Registrar acción</button>
+        </form>
+        <p id="action-message" class="message" role="status"></p>
+      </section>
+
+      <section class="card" aria-labelledby="timeline-title">
+        <div class="section-heading"><div><span class="step">4</span><h2 id="timeline-title">Trazabilidad</h2></div></div>
+        <ol id="timeline" class="timeline"><li class="empty">Aún no hay acciones cargadas.</li></ol>
+      </section>
+    </main>
+  </body>
+</html>

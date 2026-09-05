@@ -197,6 +197,7 @@ const RPC_CACHE_TIER: Record<string, CacheTier> = {
   // Results are selected by authenticated actor scope and must never be shared
   // across users or municipalities by an intermediary cache.
   '/api/integrity/v1/search-patents': 'no-store',
+  '/api/integrity/v1/get-review-case': 'no-store',
 
   // 'live' tier — bbox-quantized + tanker-aware caching upstream of the
   // 60s in-handler cache, absorbing identical-bbox requests at the CDN

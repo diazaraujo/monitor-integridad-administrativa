@@ -2407,4 +2407,96 @@ http.route({
   }),
 });
 
+http.route({
+  path: "/api/internal-review-workflow-authority",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (await reviewStorageUnauthorized(request)) {
+      return reviewStorageJson({ error: "UNAUTHORIZED" }, 401);
+    }
+    const body = await parseBoundedReviewBody(request);
+    if (!body || typeof body.actorId !== "string" || typeof body.municipalityCut !== "string") {
+      return reviewStorageJson({ error: "INVALID_REQUEST" }, 400);
+    }
+    try {
+      const result = await ctx.runQuery(
+        anyApi.reviewCases!.readWorkflowAuthorityGrant as any,
+        { actorId: body.actorId, municipalityCut: body.municipalityCut },
+      );
+      return reviewStorageJson(result, 200);
+    } catch {
+      return reviewStorageJson({ error: "REVIEW_STORAGE_FAILURE" }, 500);
+    }
+  }),
+});
+
+http.route({
+  path: "/api/internal-review-case-dossier",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (await reviewStorageUnauthorized(request)) {
+      return reviewStorageJson({ error: "UNAUTHORIZED" }, 401);
+    }
+    const body = await parseBoundedReviewBody(request);
+    if (!body || body.lookup === undefined) {
+      return reviewStorageJson({ error: "INVALID_REQUEST" }, 400);
+    }
+    try {
+      const result = await ctx.runQuery(
+        anyApi.reviewCases!.readReviewCaseDossier as any,
+        body.lookup as any,
+      );
+      return reviewStorageJson(result, 200);
+    } catch {
+      return reviewStorageJson({ error: "REVIEW_STORAGE_FAILURE" }, 500);
+    }
+  }),
+});
+
+http.route({
+  path: "/api/internal-review-action-operation",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (await reviewStorageUnauthorized(request)) {
+      return reviewStorageJson({ error: "UNAUTHORIZED" }, 401);
+    }
+    const body = await parseBoundedReviewBody(request);
+    if (!body || body.lookup === undefined) {
+      return reviewStorageJson({ error: "INVALID_REQUEST" }, 400);
+    }
+    try {
+      const result = await ctx.runQuery(
+        anyApi.reviewCases!.readReviewActionOperation as any,
+        body.lookup as any,
+      );
+      return reviewStorageJson(result, 200);
+    } catch {
+      return reviewStorageJson({ error: "REVIEW_STORAGE_FAILURE" }, 500);
+    }
+  }),
+});
+
+http.route({
+  path: "/api/internal-record-review-action",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    if (await reviewStorageUnauthorized(request)) {
+      return reviewStorageJson({ error: "UNAUTHORIZED" }, 401);
+    }
+    const body = await parseBoundedReviewBody(request);
+    if (!body || body.request === undefined) {
+      return reviewStorageJson({ error: "INVALID_REQUEST" }, 400);
+    }
+    try {
+      const result = await ctx.runMutation(
+        anyApi.reviewCases!.commitReviewAction as any,
+        { request: body.request },
+      );
+      return reviewStorageJson(result, 200);
+    } catch {
+      return reviewStorageJson({ error: "REVIEW_STORAGE_FAILURE" }, 500);
+    }
+  }),
+});
+
 export default http;

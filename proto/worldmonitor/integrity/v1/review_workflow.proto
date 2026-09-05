@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package worldmonitor.integrity.v1;
+
+import "buf/validate/validate.proto";
+import "sebuf/http/annotations.proto";
+
+// OpenLicenseReviewRequest creates one active, release-pinned review case.
+// Actor, municipality, roles and classification are derived by the server.
+message OpenLicenseReviewRequest {
+  string license_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 200}];
+  string release_id = 2 [(buf.validate.field).string = {min_len: 1, max_len: 300}];
+  string effective_on = 3 [(buf.validate.field).string = {
+    max_len: 10,
+    pattern: "^$|^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+  }];
+}
+
+message GetReviewCaseRequest {
+  // Stable identifier of the municipal review case.
+  string case_id = 1 [
+    (sebuf.http.query) = {name: "case_id"},
+    (buf.validate.field).string = {min_len: 1, max_len: 200}
+  ];
+  // Exact immutable case version to read.
+  int32 case_version = 2 [
+    (sebuf.http.query) = {name: "case_version"},
+    (buf.validate.field).int32.gte = 1
+  ];
+}
+
+message AssignReviewerRequest {
+  string case_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 200}];
+  int32 expected_case_version = 2 [(buf.validate.field).int32.gte = 1];
+  string reviewer_id = 3 [(buf.validate.field).string = {min_len: 1, max_len: 200}];
+}
+
+// RecordReviewActionRequest appends one human action. action_type is restricted
+// server-side because its transition and role rules depend on current case state.
+message RecordReviewActionRequest {
+  string case_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 200}];
+  int32 expected_case_version = 2 [(buf.validate.field).int32.gte = 1];
+  string action_type = 3 [(buf.validate.field).string = {min_len: 1, max_len: 80}];
+  string note = 4 [(buf.validate.field).string.max_len = 4000];
+  string outcome_code = 5 [(buf.validate.field).string.max_len = 100];
+  string external_reference = 6 [(buf.validate.field).string.max_len = 500];
+}
+
+message ReviewMutationResponse {
+  string case_id = 1;
+  int32 case_version = 2;
+  string status = 3;
+  string action_id = 4;
+  string action_type = 5;
+  string legal_effect = 6;
+  bool replayed = 7;
+}
+
+// The JSON fields contain validated, immutable domain snapshots. Keeping the
+// v0.1.0 document intact prevents a lossy transport projection of evidence.
+message ReviewCaseDossierResponse {
+  string case_json = 1;
+  string evidence_packet_json = 2;
+  repeated string action_json = 3;
+  // Actions currently available to the authenticated actor for this case state.
+  repeated string permitted_actions = 4;
+}

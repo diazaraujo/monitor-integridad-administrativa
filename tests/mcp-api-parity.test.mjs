@@ -85,7 +85,13 @@ const HTTP_METHODS = new Set([
 
 const EXCLUDED_FROM_MCP_PARITY = new Map([
 
-  // === mutating (18) ===
+  // === mutating (21) ===
+  ["POST /api/integrity/v1/assign-reviewer",
+    "mutating: appends an authenticated municipal assignment to persistent review storage"],
+  ["POST /api/integrity/v1/open-license-review",
+    "mutating: creates an authenticated release-pinned municipal review case"],
+  ["POST /api/integrity/v1/record-review-action",
+    "mutating: appends an authenticated human action to persistent review storage"],
   ["GET /api/aviation/v1/list-airport-delays",
     "mutating: writes state via setCachedJson / runRedisPipeline / persistent DB"],
   ["GET /api/infrastructure/v1/list-temporal-anomalies",
@@ -125,6 +131,9 @@ const EXCLUDED_FROM_MCP_PARITY = new Map([
     "mutating: dark account-scoped company-monitoring lifecycle write; MCP exposure is explicitly outside #6004 and runtime remains disabled until #6003"],
   ["POST /api/company-monitoring/v1/update-monitored-company",
     "mutating: dark account-scoped company-monitoring write; MCP exposure is explicitly outside #6004 and runtime remains disabled until #6003"],
+
+  ["GET /api/integrity/v1/get-review-case",
+    "deferred-to-future-tool: authenticated municipal dossier read belongs in a future review_workflow tool with equivalent actor-scope enforcement"],
 
   // === llm-passthrough (2) ===
   // classify-event moved to covered in #5697: the classify_event MCP tool wraps

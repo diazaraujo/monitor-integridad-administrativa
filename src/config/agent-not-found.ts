@@ -56,6 +56,7 @@ export const AGENT_NOT_FOUND_PASSTHROUGH_PREFIXES = [
   '/eula',
   '/favico',
   '/help',
+  '/integrity',
   '/legal',
   '/map-styles',
   '/mcp',
