@@ -1,28 +1,29 @@
 openapi: 3.1.0
 info:
   title: Commercial Licenses Capability Contract
-  version: 0.1.0-draft
+  version: 0.1.0
   description: >-
     Contrato de lectura entre Inteligencia Inmobiliaria, productor del data
     product commercial-licenses, y Chile Monitor. Los identificadores son
     opacos. El consumidor no accede a tablas internas ni reingesta fuentes.
 servers:
-  - url: https://inteligencia-inmobiliaria.example.cl
-    description: URL por acordar
+  - url: http://10.0.0.3:8130/api/integrity
+    description: Piloto privado en Enigma; accesible sólo desde la red interna
 tags:
   - name: Patents
   - name: Establishments
 security:
   - ServiceKeyAuth: []
 paths:
-  /v1/patents/{municipality_cut}/{license_id}:
+  /v1/patents/{municipality_cut}/{source_license_id}:
     get:
       operationId: patentsGet
+      x-capability: patents.get
       tags: [Patents]
       summary: Obtiene una patente y su contexto trazable
       parameters:
         - $ref: '#/components/parameters/MunicipalityCut'
-        - $ref: '#/components/parameters/LicenseId'
+        - $ref: '#/components/parameters/SourceLicenseId'
         - $ref: '#/components/parameters/ReleaseId'
         - $ref: '#/components/parameters/EffectiveOn'
         - $ref: '#/components/parameters/Representation'
@@ -35,18 +36,19 @@ paths:
                 $ref: '#/components/schemas/PatentGetResponse'
         '404':
           $ref: '#/components/responses/NotFound'
-        '422':
+        '400':
           $ref: '#/components/responses/InvalidRequest'
-        '503':
-          $ref: '#/components/responses/Unavailable'
-  /v1/patents/{municipality_cut}/{license_id}/timeline:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /v1/patents/{municipality_cut}/{source_license_id}/timeline:
     get:
       operationId: patentsTimeline
+      x-capability: patents.timeline
       tags: [Patents]
       summary: Obtiene los eventos conocidos sin completar eventos ausentes
       parameters:
         - $ref: '#/components/parameters/MunicipalityCut'
-        - $ref: '#/components/parameters/LicenseId'
+        - $ref: '#/components/parameters/SourceLicenseId'
         - $ref: '#/components/parameters/ReleaseId'
         - $ref: '#/components/parameters/Representation'
       responses:
@@ -58,13 +60,14 @@ paths:
                 $ref: '#/components/schemas/PatentTimelineResponse'
         '404':
           $ref: '#/components/responses/NotFound'
-        '422':
+        '400':
           $ref: '#/components/responses/InvalidRequest'
-        '503':
-          $ref: '#/components/responses/Unavailable'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /v1/patents/search:
     get:
       operationId: patentsSearch
+      x-capability: patents.search
       tags: [Patents]
       summary: Busca patentes dentro de un release promovido
       parameters:
@@ -83,12 +86,6 @@ paths:
           in: query
           schema:
             type: string
-        - name: legal_entity_rut
-          in: query
-          description: Sólo RUT de persona jurídica, sin puntos y con guion.
-          schema:
-            type: string
-            pattern: '^[0-9]{7,8}-[0-9Kk]$'
         - name: address
           in: query
           schema:
@@ -116,7 +113,7 @@ paths:
           schema:
             type: integer
             minimum: 1
-            maximum: 200
+            maximum: 100
             default: 50
       responses:
         '200':
@@ -125,13 +122,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PatentSearchResponse'
-        '422':
+        '400':
           $ref: '#/components/responses/InvalidRequest'
-        '503':
-          $ref: '#/components/responses/Unavailable'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /v1/patents/coverage:
     get:
       operationId: patentsCoverage
+      x-capability: patents.coverage
       tags: [Patents]
       summary: Expone cobertura, frescura y brechas por municipio y período
       parameters:
@@ -155,13 +155,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PatentCoverageResponse'
-        '422':
+        '400':
           $ref: '#/components/responses/InvalidRequest'
-        '503':
-          $ref: '#/components/responses/Unavailable'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /v1/establishments/resolve:
     post:
       operationId: establishmentsResolve
+      x-capability: establishments.resolve
       tags: [Establishments]
       summary: Resuelve candidatos de establecimiento y predio sin forzar certeza
       parameters:
@@ -180,10 +183,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EstablishmentResolveResponse'
-        '422':
+        '400':
           $ref: '#/components/responses/InvalidRequest'
-        '503':
-          $ref: '#/components/responses/Unavailable'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     ServiceKeyAuth:
@@ -204,11 +209,13 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/CutCode'
-    LicenseId:
-      name: license_id
+    SourceLicenseId:
+      name: source_license_id
       in: path
       required: true
-      description: ID fuente estable o identificador canónico opaco del productor.
+      description: >-
+        Identificador estable emitido por el municipio. Junto con municipality_cut
+        forma la identidad de consulta; el UUID interno del productor no se usa como clave.
       schema:
         type: string
         minLength: 1
@@ -218,8 +225,9 @@ components:
       in: query
       required: false
       description: >-
-        Release promovido exacto. Si se omite, el productor usa el último release
-        bueno y devuelve su identificador en metadata.
+        Release promovido exacto. Si se informa y no existe, responde
+        release_not_found sin cambiar a latest. Si se omite y el release más nuevo
+        no es servible, usa el último release bueno y declara stale_last_good.
       schema:
         type: string
         minLength: 1
@@ -238,12 +246,18 @@ components:
       name: representation
       in: query
       required: false
-      description: La representación restringida exige autorización municipal explícita.
+      description: La única representación habilitada durante el piloto es la pública.
       schema:
         type: string
-        enum: [public, municipal_restricted]
+        enum: [public]
         default: public
   responses:
+    Unauthorized:
+      description: Falta X-Service-Key o la credencial no es válida
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
     NotFound:
       description: El objeto no está presente en la cobertura declarada del release
       content:
@@ -252,12 +266,6 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     InvalidRequest:
       description: Parámetros inválidos o combinación no soportada
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-    Unavailable:
-      description: No existe un release bueno utilizable o la capability no puede responder
       content:
         application/json:
           schema:
@@ -309,7 +317,7 @@ components:
           enum: [current, stale_last_good]
         data_marking:
           type: string
-          enum: [PUBLIC, MUNICIPAL_INTERNAL]
+          const: PUBLIC
         last_good_release_id:
           type: [string, 'null']
         quality_report_uri:
@@ -936,16 +944,23 @@ components:
     ErrorResponse:
       type: object
       additionalProperties: false
-      required: [code, message, retryable]
+      required: [error]
       properties:
-        code:
-          type: string
-          enum: [not_found, invalid_request, release_not_found, schema_incompatible, unavailable]
-        message:
-          type: string
-        retryable:
-          type: boolean
-        metadata:
-          oneOf:
-            - $ref: '#/components/schemas/ReleaseMetadata'
-            - type: 'null'
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, retryable]
+          properties:
+            code:
+              type: string
+              enum:
+                - not_found
+                - release_not_found
+                - coverage_not_available
+                - unsupported_filter
+                - invalid_cursor
+                - unauthorized
+            message:
+              type: string
+            retryable:
+              type: boolean

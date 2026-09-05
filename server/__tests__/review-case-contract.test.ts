@@ -25,7 +25,7 @@ function evidencePacket(): Record<string, any> {
       last_good_release_id: null, quality_report_uri: 'quality/report.json', queried_at: EVALUATED_AT,
     }],
     license: {
-      license_id: 'license-001', source_license_id: 'municipal-001', municipality_cut: '13101',
+      license_id: 'license-001', source_license_id: 'license-001', municipality_cut: '13101',
       license_type: 'commercial', reported_status: 'vigente', provisional_status: 'definitive',
       address: { original: 'Synthetic address', municipality_cut: '13101' }, observed_at: EVALUATED_AT,
       source_refs: [SOURCE_REF],

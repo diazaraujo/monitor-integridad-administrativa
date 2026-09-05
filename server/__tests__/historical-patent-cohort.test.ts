@@ -148,19 +148,21 @@ function timelineResponse(params: {
 function fakeClient() {
   const getPatent = vi.fn(async (params: {
     municipalityCut: string;
-    licenseId: string;
+    sourceLicenseId: string;
     releaseId?: string;
     effectiveOn?: string;
   }) => patentResponse({
-    ...params,
+    municipalityCut: params.municipalityCut,
+    licenseId: params.sourceLicenseId,
     releaseId: params.releaseId ?? 'missing-release',
   }));
   const getPatentTimeline = vi.fn(async (params: {
     municipalityCut: string;
-    licenseId: string;
+    sourceLicenseId: string;
     releaseId?: string;
   }) => timelineResponse({
-    ...params,
+    municipalityCut: params.municipalityCut,
+    licenseId: params.sourceLicenseId,
     releaseId: params.releaseId ?? 'missing-release',
   }));
   const client = {

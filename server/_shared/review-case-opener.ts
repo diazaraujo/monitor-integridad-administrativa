@@ -592,7 +592,7 @@ async function buildPacket(
   if (
     packet.case_id !== caseId
     || packet.municipality_cut !== command.municipalityCut
-    || packet.license.license_id !== command.licenseId
+    || packet.license.source_license_id !== command.licenseId
     || !sameSet(packet.classification, BASE_CLASSIFICATION)
   ) {
     throw new ReviewCaseOpenerError('integrity_failure', 'Review evidence failed validation');

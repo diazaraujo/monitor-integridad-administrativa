@@ -1,6 +1,6 @@
 # Diseño del cliente `commercial-licenses`
 
-**Estado:** listo para implementación, pendiente de preflight y conexión del productor.
+**Estado:** sincronizado con el adaptador operativo `0.1.0` del productor.
 
 ## Decisión
 
@@ -44,6 +44,11 @@ interface CommercialLicensesClient {
 Todas las operaciones aceptan un `releaseId` opcional. Cuando se entrega, la
 respuesta debe usar exactamente ese release. Omitirlo solicita el último release
 bueno al productor; nunca autoriza al cliente a inventar un fallback.
+
+`getPatent` y `getPatentTimeline` reciben `sourceLicenseId`: la identidad estable
+es `(municipalityCut, sourceLicenseId)`, no el UUID interno del productor. Search
+no acepta RUT como filtro, limita cada página a 100 y sólo utiliza representación
+`public` durante el piloto.
 
 ## Transporte
 
@@ -99,8 +104,8 @@ Antes de crear código productivo se requiere:
 
 1. issue de implementación para ejecutar el preflight obligatorio;
 2. Node 24 activo, como exige el repositorio;
-3. URL de staging;
-4. autenticación y rotación de credenciales acordadas;
+3. URL privada de Enigma configurada fuera de Git;
+4. autenticación y rotación de credenciales acordadas fuera de Git;
 5. major de `schema_version` soportada;
 6. release y fixtures reales del productor.
 

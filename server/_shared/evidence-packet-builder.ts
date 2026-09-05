@@ -126,7 +126,7 @@ export function createEvidencePacketBuilder(
       const generatedAt = now().toISOString();
       const patentRequest = compactDefined({
         municipalityCut: input.municipalityCut,
-        licenseId: input.licenseId,
+        sourceLicenseId: input.licenseId,
         releaseId: input.releaseId,
         effectiveOn: input.effectiveOn,
         representation: input.representation,
@@ -140,7 +140,7 @@ export function createEvidencePacketBuilder(
       let timelineUnavailable = false;
       const timelineRequest = compactDefined({
         municipalityCut: input.municipalityCut,
-        licenseId: input.licenseId,
+        sourceLicenseId: input.licenseId,
         releaseId: input.releaseId,
         representation: input.representation,
       });
@@ -405,7 +405,7 @@ export async function buildEvidencePacket(
       'patents.get',
       compactDefined({
         municipalityCut: input.municipalityCut,
-        licenseId: input.patent.license.license_id,
+        sourceLicenseId: input.patent.license.source_license_id,
         releaseId: input.requestedReleaseId,
         effectiveOn,
       }),
@@ -418,7 +418,7 @@ export async function buildEvidencePacket(
             'patents.timeline',
             {
               municipalityCut: input.municipalityCut,
-              licenseId: input.patent.license.license_id,
+              sourceLicenseId: input.patent.license.source_license_id,
               releaseId: input.requestedReleaseId,
             },
             input.timeline,

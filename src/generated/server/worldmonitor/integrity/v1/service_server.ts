@@ -6,11 +6,14 @@ export interface SearchPatentsRequest {
   status: string;
   licenseType: string;
   activity: string;
+  /** @deprecated */
   legalEntityRut: string;
   address: string;
   effectiveOn: string;
   cursor: string;
   pageSize: number;
+  establishmentId: string;
+  parcelId: string;
 }
 
 export interface SearchPatentsResponse {
@@ -109,6 +112,8 @@ export function createIntegrityServiceRoutes(
             effectiveOn: params.get("effective_on") ?? "",
             cursor: params.get("cursor") ?? "",
             pageSize: Number(params.get("page_size") ?? "0"),
+            establishmentId: params.get("establishment_id") ?? "",
+            parcelId: params.get("parcel_id") ?? "",
           };
           if (options?.validateRequest) {
             const bodyViolations = options.validateRequest("searchPatents", body);

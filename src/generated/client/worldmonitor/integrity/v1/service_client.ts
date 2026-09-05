@@ -6,11 +6,14 @@ export interface SearchPatentsRequest {
   status: string;
   licenseType: string;
   activity: string;
+  /** @deprecated */
   legalEntityRut: string;
   address: string;
   effectiveOn: string;
   cursor: string;
   pageSize: number;
+  establishmentId: string;
+  parcelId: string;
 }
 
 export interface SearchPatentsResponse {
@@ -98,6 +101,8 @@ export class IntegrityServiceClient {
     if (req.effectiveOn != null && req.effectiveOn !== "") params.set("effective_on", String(req.effectiveOn));
     if (req.cursor != null && req.cursor !== "") params.set("cursor", String(req.cursor));
     if (req.pageSize != null && req.pageSize !== 0) params.set("page_size", String(req.pageSize));
+    if (req.establishmentId != null && req.establishmentId !== "") params.set("establishment_id", String(req.establishmentId));
+    if (req.parcelId != null && req.parcelId !== "") params.set("parcel_id", String(req.parcelId));
     const url = this.baseURL + path + (params.toString() ? "?" + params.toString() : "");
 
     const headers: Record<string, string> = {

@@ -77,10 +77,10 @@ describe('commercial licenses HTTP client', () => {
 
     await client.getPatent({
       municipalityCut: '13101',
-      licenseId: 'license / 42',
+      sourceLicenseId: 'license / 42',
       releaseId: RELEASE_ID,
       effectiveOn: '2026-08-01',
-      representation: 'municipal_restricted',
+      representation: 'public',
     });
 
     expect(fetchImpl).toHaveBeenCalledTimes(1);
@@ -90,7 +90,7 @@ describe('commercial licenses HTTP client', () => {
     expect(Object.fromEntries(url.searchParams)).toEqual({
       effective_on: '2026-08-01',
       release_id: RELEASE_ID,
-      representation: 'municipal_restricted',
+      representation: 'public',
     });
     expect(init).toMatchObject({
       method: 'GET',
@@ -107,11 +107,11 @@ describe('commercial licenses HTTP client', () => {
   test('serializes patents.timeline and omits absent query parameters', async () => {
     const { client, fetchImpl } = createHarness();
 
-    await client.getPatentTimeline({ municipalityCut: '13101', licenseId: 'license-1' });
+    await client.getPatentTimeline({ municipalityCut: '13101', sourceLicenseId: 'license-1' });
 
     const [input, init] = fetchImpl.mock.calls[0];
     expect(String(input)).toBe(
-      'https://licenses.test/capabilities/v1/patents/13101/license-1/timeline',
+      'https://licenses.test/capabilities/v1/patents/13101/license-1/timeline?representation=public',
     );
     expect(init?.method).toBe('GET');
   });
@@ -126,7 +126,6 @@ describe('commercial licenses HTTP client', () => {
       status: 'vigente & observada',
       licenseType: 'commercial',
       activity: 'alimentos',
-      legalEntityRut: '76543210-K',
       address: 'Avenida Uno 123 #4',
       establishmentId: 'est-1',
       parcelId: 'parcel-1',
@@ -143,7 +142,6 @@ describe('commercial licenses HTTP client', () => {
       cursor: 'opaque+cursor=',
       effective_on: '2026-08-01',
       establishment_id: 'est-1',
-      legal_entity_rut: '76543210-K',
       license_type: 'commercial',
       limit: '25',
       municipality_cut: '13101',
@@ -169,6 +167,7 @@ describe('commercial licenses HTTP client', () => {
       municipality_cut: '13101',
       period_from: '2021-01-01',
       period_to: '2026-08-28',
+      representation: 'public',
     });
   });
 
@@ -186,7 +185,10 @@ describe('commercial licenses HTTP client', () => {
     const [input, init] = fetchImpl.mock.calls[0];
     const url = new URL(String(input));
     expect(url.pathname).toBe('/capabilities/v1/establishments/resolve');
-    expect(Object.fromEntries(url.searchParams)).toEqual({ release_id: RELEASE_ID });
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      release_id: RELEASE_ID,
+      representation: 'public',
+    });
     expect(init).toMatchObject({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -216,7 +218,7 @@ describe('commercial licenses HTTP client', () => {
     await expect(
       client.getPatent({
         municipalityCut: '13101',
-        licenseId: 'secret-id',
+        sourceLicenseId: 'secret-id',
         releaseId: RELEASE_ID,
       }),
     ).rejects.toMatchObject({
@@ -245,7 +247,7 @@ describe('commercial licenses HTTP client', () => {
     await expect(
       wrongDate.client.getPatent({
         municipalityCut: '13101',
-        licenseId: 'license-1',
+        sourceLicenseId: 'license-1',
         effectiveOn: '2026-08-01',
       }),
     ).rejects.toMatchObject({ kind: 'temporal_mismatch' });
@@ -270,12 +272,12 @@ describe('commercial licenses HTTP client', () => {
   test('keeps safe HTTP error fields without exposing upstream messages', async () => {
     const secret = 'Avenida Secreta 123';
     const { client } = createHarness([
-      jsonResponse({ code: 'release_not_found', message: secret, retryable: false }, 404),
+      jsonResponse({ error: { code: 'release_not_found', message: secret, retryable: false } }, 404),
     ]);
 
     let caught: unknown;
     try {
-      await client.getPatent({ municipalityCut: '13101', licenseId: 'sensitive-license' });
+      await client.getPatent({ municipalityCut: '13101', sourceLicenseId: 'sensitive-license' });
     } catch (error) {
       caught = error;
     }
@@ -338,7 +340,7 @@ describe('commercial licenses HTTP client', () => {
   test('builds a server-only client from the Purranque environment contract', async () => {
     const fetchImpl = vi.fn(async () => jsonResponse(response('purranque-2026-s1')));
     const client = createCommercialLicensesClientFromEnv({
-      CHILE_COMMERCIAL_LICENSES_BASE_URL: 'http://10.0.0.3:8130/api/commercial-licenses/',
+      CHILE_COMMERCIAL_LICENSES_BASE_URL: 'http://10.0.0.3:8130/api/integrity/',
       CHILE_COMMERCIAL_LICENSES_SERVICE_KEY: 'purranque-test-service-key',
       CHILE_COMMERCIAL_LICENSES_TIMEOUT_MS: '1200',
     }, fetchImpl);
@@ -349,7 +351,7 @@ describe('commercial licenses HTTP client', () => {
     });
 
     const [input, init] = fetchImpl.mock.calls[0];
-    expect(new URL(String(input)).pathname).toBe('/api/commercial-licenses/v1/patents/coverage');
+    expect(new URL(String(input)).pathname).toBe('/api/integrity/v1/patents/coverage');
     expect(new Headers(init?.headers).get('X-Service-Key')).toBe('purranque-test-service-key');
     expect(new Headers(init?.headers).get('Authorization')).toBeNull();
   });
@@ -367,5 +369,14 @@ describe('commercial licenses HTTP client', () => {
       CHILE_COMMERCIAL_LICENSES_SERVICE_KEY: 'key',
       CHILE_COMMERCIAL_LICENSES_TIMEOUT_MS: '30001',
     })).toThrowError(CommercialLicensesClientError);
+  });
+
+  test('rejects the unavailable municipal-restricted representation before transport', async () => {
+    const { client, fetchImpl } = createHarness();
+    await expect(client.getPatentCoverage({
+      municipalityCut: '13101',
+      representation: 'municipal_restricted',
+    })).rejects.toMatchObject({ kind: 'configuration' });
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

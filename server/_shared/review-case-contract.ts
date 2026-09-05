@@ -179,8 +179,8 @@ export function parseReviewCaseDossier(value: unknown): ReviewCaseDossier {
   if (evidencePacket.municipality_cut !== snapshot.municipality_cut) {
     fail('$.evidence_packet_snapshot.packet.municipality_cut', 'municipality_mismatch');
   }
-  if (evidencePacket.license.license_id !== snapshot.license_id) {
-    fail('$.evidence_packet_snapshot.packet.license.license_id', 'license_mismatch');
+  if (evidencePacket.license.source_license_id !== snapshot.license_id) {
+    fail('$.evidence_packet_snapshot.packet.license.source_license_id', 'license_mismatch');
   }
   if (!sameSet(evidencePacket.classification, snapshot.classification)) {
     fail('$.evidence_packet_snapshot.packet.classification', 'classification_mismatch');

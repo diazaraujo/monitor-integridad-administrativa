@@ -11,7 +11,7 @@ const actor = {
   actor_id: 'user-municipal-1',
   municipality_cut: '13115',
   roles: ['rentas'] as const,
-  representation: 'municipal_restricted' as const,
+  representation: 'public' as const,
 };
 
 function context() {
@@ -30,7 +30,7 @@ function response() {
       promoted_at: '2026-08-31T00:00:00.000Z',
       quality_status: 'promoted' as const,
       availability: 'current' as const,
-      data_marking: 'MUNICIPAL_INTERNAL' as const,
+      data_marking: 'PUBLIC' as const,
       last_good_release_id: null,
       quality_report_uri: 'urn:quality:lo-barnechea-2025-s1',
     },
@@ -39,7 +39,7 @@ function response() {
     next_cursor: 'next-1',
     items: [{
       license: {
-        license_id: '7-092387', source_license_id: '7-092387', license_number: '92387',
+        license_id: 'opaque-internal-uuid', source_license_id: '7-092387', license_number: '92387',
         municipality_cut: '13115', license_type: 'commercial', reported_status: 'vigente',
         provisional_status: 'provisional' as const,
         address: { original: 'Av. Siempre Viva 123', municipality_cut: '13115', source_refs: [] },
@@ -76,15 +76,19 @@ describe('IntegrityService.searchPatents', () => {
     });
 
     const result = await searchPatents(context(), {
-      releaseId: '', status: 'vigente', licenseType: '', activity: '', legalEntityRut: '',
+      releaseId: '', status: 'vigente', licenseType: '', activity: '',
+      legalEntityRut: '',
       address: 'Siempre Viva', effectiveOn: '', cursor: '', pageSize: 20,
+      establishmentId: 'est-1', parcelId: 'parcel-1',
     });
 
     expect(searchPatentsUpstream).toHaveBeenCalledWith(expect.objectContaining({
       municipalityCut: '13115',
-      representation: 'municipal_restricted',
+      representation: 'public',
       status: 'vigente',
       address: 'Siempre Viva',
+      establishmentId: 'est-1',
+      parcelId: 'parcel-1',
       limit: 20,
     }));
     expect(result).toMatchObject({
@@ -108,8 +112,9 @@ describe('IntegrityService.searchPatents', () => {
     });
 
     await expect(searchPatents(context(), {
-      releaseId: '', status: '', licenseType: '', activity: '', legalEntityRut: '', address: '',
-      effectiveOn: '', cursor: '', pageSize: 0,
+      releaseId: '', status: '', licenseType: '', activity: '', address: '',
+      legalEntityRut: '', effectiveOn: '', cursor: '', pageSize: 0,
+      establishmentId: '', parcelId: '',
     })).rejects.toMatchObject({ statusCode: 401 });
     expect(createClient).not.toHaveBeenCalled();
   });
@@ -125,8 +130,60 @@ describe('IntegrityService.searchPatents', () => {
     });
 
     await expect(searchPatents(context(), {
-      releaseId: '', status: '', licenseType: '', activity: '', legalEntityRut: '', address: '',
-      effectiveOn: '', cursor: '', pageSize: 0,
+      releaseId: '', status: '', licenseType: '', activity: '', address: '',
+      legalEntityRut: '', effectiveOn: '', cursor: '', pageSize: 0,
+      establishmentId: '', parcelId: '',
     })).rejects.toMatchObject({ statusCode: 503, message: 'Commercial licenses unavailable' });
+  });
+
+  test('preserves producer request and release errors without silent fallback', async () => {
+    for (const [upstreamStatus, expectedStatus] of [[400, 400], [404, 404]] as const) {
+      __setSearchPatentsDependenciesForTests({
+        resolveActorScope: async () => actor,
+        createClient: () => ({
+          searchPatents: async () => {
+            throw new CommercialLicensesClientError('http', 'secret upstream detail', {
+              status: upstreamStatus,
+              upstreamCode: upstreamStatus === 404 ? 'release_not_found' : 'invalid_cursor',
+            });
+          },
+        } as never),
+      });
+
+      await expect(searchPatents(context(), {
+        releaseId: 'pinned-release', status: '', licenseType: '', activity: '', address: '',
+        legalEntityRut: '', effectiveOn: '', cursor: '', pageSize: 0,
+        establishmentId: '', parcelId: '',
+      })).rejects.toMatchObject({ statusCode: expectedStatus });
+    }
+  });
+
+  test('fails closed before transport for the unavailable restricted representation', async () => {
+    const createClient = vi.fn();
+    __setSearchPatentsDependenciesForTests({
+      resolveActorScope: async () => ({ ...actor, representation: 'municipal_restricted' }),
+      createClient,
+    });
+
+    await expect(searchPatents(context(), {
+      releaseId: '', status: '', licenseType: '', activity: '', address: '',
+      legalEntityRut: '', effectiveOn: '', cursor: '', pageSize: 0,
+      establishmentId: '', parcelId: '',
+    })).rejects.toMatchObject({ statusCode: 403 });
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  test('rejects the deprecated RUT filter before contacting the producer', async () => {
+    const createClient = vi.fn();
+    __setSearchPatentsDependenciesForTests({
+      resolveActorScope: async () => actor,
+      createClient,
+    });
+    await expect(searchPatents(context(), {
+      releaseId: '', status: '', licenseType: '', activity: '', address: '',
+      legalEntityRut: '76543210-K', effectiveOn: '', cursor: '', pageSize: 0,
+      establishmentId: '', parcelId: '',
+    })).rejects.toMatchObject({ statusCode: 400 });
+    expect(createClient).not.toHaveBeenCalled();
   });
 });
