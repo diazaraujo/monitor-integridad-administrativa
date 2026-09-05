@@ -45,7 +45,7 @@ function packet(): Record<string, any> {
     }],
     license: {
       license_id: 'license-001',
-      source_license_id: 'municipal-001',
+      source_license_id: 'license-001',
       municipality_cut: '13101',
       license_type: 'commercial',
       reported_status: 'vigente',

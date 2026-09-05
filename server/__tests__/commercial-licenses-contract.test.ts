@@ -212,6 +212,43 @@ describe('commercial-licenses response contract', () => {
     });
   });
 
+  test('matches the operational producer surface and five canonical capabilities', () => {
+    const document = parseYaml(readFileSync(new URL(
+      '../../docs/research/contracts/commercial-licenses.openapi.yaml',
+      import.meta.url,
+    ), 'utf8')) as {
+      info: { version: string };
+      servers: Array<{ url: string }>;
+      paths: Record<string, { get?: Record<string, any>; post?: Record<string, any> }>;
+      components: { parameters: Record<string, any>; schemas: Record<string, any> };
+    };
+    expect(document.info.version).toBe('0.1.0');
+    expect(document.servers).toEqual([{ url: 'http://10.0.0.3:8130/api/integrity', description: expect.any(String) }]);
+
+    const operations = Object.values(document.paths).flatMap((path) => [path.get, path.post])
+      .filter(Boolean);
+    expect(operations.map((operation) => operation?.['x-capability']).sort()).toEqual([
+      'establishments.resolve', 'patents.coverage', 'patents.get', 'patents.search',
+      'patents.timeline',
+    ]);
+    expect(operations.map((operation) => operation?.operationId).sort()).toEqual([
+      'establishmentsResolve', 'patentsCoverage', 'patentsGet', 'patentsSearch',
+      'patentsTimeline',
+    ]);
+
+    const search = document.paths['/v1/patents/search']?.get;
+    const searchParameters = search?.parameters as Array<Record<string, any>>;
+    expect(searchParameters.some((parameter) => parameter.name === 'legal_entity_rut')).toBe(false);
+    expect(searchParameters.find((parameter) => parameter.name === 'limit')?.schema.maximum).toBe(100);
+    expect(document.components.parameters.SourceLicenseId.name).toBe('source_license_id');
+    expect(document.components.parameters.Representation.schema.enum).toEqual(['public']);
+    expect(document.components.schemas.ReleaseMetadata.properties.data_marking.const).toBe('PUBLIC');
+    expect(document.components.schemas.ErrorResponse.required).toEqual(['error']);
+    expect(document.components.schemas.ErrorResponse.properties.error.required).toEqual([
+      'code', 'message', 'retryable',
+    ]);
+  });
+
   test('parses a complete patents.get response', () => {
     const parsed = parsePatentGetResponse(patentGet());
     expect(parsed.metadata.release_id).toBe('commercial-licenses-2026-08-28-001');

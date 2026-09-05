@@ -36,13 +36,13 @@ export interface CommercialLicensesReadOptions {
 
 export interface PatentGetParams extends CommercialLicensesReadOptions {
   municipality_cut: string;
-  license_id: string;
+  source_license_id: string;
   effective_on?: string;
 }
 
 export interface PatentTimelineParams extends CommercialLicensesReadOptions {
   municipality_cut: string;
-  license_id: string;
+  source_license_id: string;
 }
 
 export interface PatentSearchParams extends CommercialLicensesReadOptions {
@@ -50,7 +50,6 @@ export interface PatentSearchParams extends CommercialLicensesReadOptions {
   status?: string;
   license_type?: string;
   activity?: string;
-  legal_entity_rut?: string;
   address?: string;
   establishment_id?: string;
   parcel_id?: string;

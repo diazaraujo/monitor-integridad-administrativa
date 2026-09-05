@@ -259,7 +259,7 @@ async function verifyPacketIntegrity(
     packet.generated_at !== reference.packet_generated_at ||
     packet.case_id !== snapshot.case_id ||
     packet.municipality_cut !== snapshot.municipality_cut ||
-    packet.license.license_id !== snapshot.license_id ||
+    packet.license.source_license_id !== snapshot.license_id ||
     !sameStringSet(packet.classification, snapshot.classification) ||
     packet.reproducibility.packet_content_sha256 !== reference.packet_content_sha256
   ) {

@@ -6,11 +6,12 @@ export interface SearchPatentsRequest {
   status: string;
   licenseType: string;
   activity: string;
-  legalEntityRut: string;
   address: string;
   effectiveOn: string;
   cursor: string;
   pageSize: number;
+  establishmentId: string;
+  parcelId: string;
 }
 
 export interface SearchPatentsResponse {
@@ -104,11 +105,12 @@ export function createIntegrityServiceRoutes(
             status: params.get("status") ?? "",
             licenseType: params.get("license_type") ?? "",
             activity: params.get("activity") ?? "",
-            legalEntityRut: params.get("legal_entity_rut") ?? "",
             address: params.get("address") ?? "",
             effectiveOn: params.get("effective_on") ?? "",
             cursor: params.get("cursor") ?? "",
             pageSize: Number(params.get("page_size") ?? "0"),
+            establishmentId: params.get("establishment_id") ?? "",
+            parcelId: params.get("parcel_id") ?? "",
           };
           if (options?.validateRequest) {
             const bodyViolations = options.validateRequest("searchPatents", body);

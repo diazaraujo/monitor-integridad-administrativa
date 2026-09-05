@@ -1,6 +1,6 @@
 # Aceptación del data product `commercial-licenses`
 
-**Versión:** 0.1 draft
+**Versión:** 0.1.0
 
 **Productor:** Inteligencia Inmobiliaria
 
@@ -20,6 +20,34 @@ La autenticación acordada es `X-Service-Key` desde runtime servidor. La URL, la
 clave y su rotación se configuran fuera de Git mediante
 `CHILE_COMMERCIAL_LICENSES_BASE_URL` y
 `CHILE_COMMERCIAL_LICENSES_SERVICE_KEY`; ningún secreto usa prefijo `VITE_*`.
+El endpoint privado del piloto es `http://10.0.0.3:8130/api/integrity/`; la URL no
+contiene credenciales y `X-Service-Key` permanece exclusivamente server-side.
+
+Las cinco capabilities canónicas y sus `operationId` compatibles son:
+
+| Capability | operationId |
+|---|---|
+| `patents.get` | `patentsGet` |
+| `patents.search` | `patentsSearch` |
+| `patents.timeline` | `patentsTimeline` |
+| `patents.coverage` | `patentsCoverage` |
+| `establishments.resolve` | `establishmentsResolve` |
+
+La identidad estable de consulta es `(municipality_cut, source_license_id)`. Los
+UUID internos del productor son opacos. La búsqueda admite estado, tipo, actividad,
+dirección, establecimiento, predio y fecha efectiva; no admite RUT como filtro. El
+cursor es opaco y el límite máximo es 100. Durante el piloto sólo se solicita y
+acepta la representación `public`.
+
+## Evidencia de sincronización
+
+Esta versión incorpora la revisión del productor en el commit
+`144d9c5ed9ccfeb8f9a5e50afc8f1c307cb9cda3` y el recibo
+`phase4.248-contract-review-production-receipt-2026-09-01`. El smoke del productor
+confirmó HTTP 200 para las cinco capabilities, cursor en `patents.search`, 770
+registros recibidos en `patents.coverage`, cero RUT/tax ID no vacíos en la muestra
+pública y HTTP 401 sin credencial. El recibo no contiene la credencial ni payloads
+de patentes; tampoco autoriza merge o despliegue del consumidor.
 
 ## Insumos para la prueba
 

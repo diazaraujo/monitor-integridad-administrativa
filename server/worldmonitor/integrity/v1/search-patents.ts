@@ -52,7 +52,7 @@ function parcelResolutionStatus(item: {
 
 function projectQueueItem(item: Awaited<ReturnType<CommercialLicensesClient['searchPatents']>>['items'][number]): PatentQueueItem {
   return {
-    licenseId: item.license.license_id,
+    licenseId: item.license.source_license_id,
     municipalityCut: item.license.municipality_cut,
     licenseNumber: item.license.license_number ?? '',
     licenseType: item.license.license_type,
@@ -84,16 +84,21 @@ export const searchPatents: IntegrityServiceHandler['searchPatents'] = async (
     throw new ApiError(503, 'Municipal authorization unavailable', '');
   }
 
+  if (actor.representation !== 'public') {
+    throw new ApiError(403, 'Municipal restricted representation unavailable', '');
+  }
+
   try {
     const response = await dependencies.createClient().searchPatents({
       municipalityCut: actor.municipality_cut,
-      representation: actor.representation,
+      representation: 'public',
       releaseId: optional(req.releaseId),
       status: optional(req.status),
       licenseType: optional(req.licenseType),
       activity: optional(req.activity),
-      legalEntityRut: optional(req.legalEntityRut),
       address: optional(req.address),
+      establishmentId: optional(req.establishmentId),
+      parcelId: optional(req.parcelId),
       effectiveOn: optional(req.effectiveOn),
       cursor: optional(req.cursor),
       limit: req.pageSize > 0 ? req.pageSize : 25,
@@ -109,12 +114,11 @@ export const searchPatents: IntegrityServiceHandler['searchPatents'] = async (
     };
   } catch (error) {
     if (error instanceof CommercialLicensesClientError) {
+      if (error.kind === 'http' && error.status === 400) {
+        throw new ApiError(400, 'Invalid commercial licenses request', '');
+      }
       if (error.kind === 'http' && error.status === 404) {
-        return {
-          items: [], nextCursor: '', releaseId: '', dataAsOf: '', availability: 'current',
-          dataMarking: actor.representation === 'public' ? 'PUBLIC' : 'MUNICIPAL_INTERNAL',
-          limitationCodes: ['data_gap'],
-        };
+        throw new ApiError(404, 'Commercial licenses release or patent unavailable', '');
       }
     }
     throw new ApiError(503, 'Commercial licenses unavailable', '');

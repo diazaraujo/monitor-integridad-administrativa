@@ -246,7 +246,7 @@ describe('EvidencePacket builder', () => {
     );
     expect(getQuery?.request_sha256).toBe(await sha256CanonicalJson({
       municipalityCut: '13101',
-      licenseId: 'license-001',
+      sourceLicenseId: 'municipal-license-001',
       releaseId: RELEASE_ID,
     }));
     expect(getQuery?.response_sha256).toBe(

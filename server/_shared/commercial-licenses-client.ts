@@ -24,7 +24,8 @@ export type CommercialLicensesRepresentation = 'public' | 'municipal_restricted'
 
 export interface PatentGetParams {
   municipalityCut: string;
-  licenseId: string;
+  /** Municipality-issued source identifier; never the producer's internal UUID. */
+  sourceLicenseId: string;
   releaseId?: string;
   effectiveOn?: string;
   representation?: CommercialLicensesRepresentation;
@@ -32,7 +33,8 @@ export interface PatentGetParams {
 
 export interface PatentTimelineParams {
   municipalityCut: string;
-  licenseId: string;
+  /** Municipality-issued source identifier; never the producer's internal UUID. */
+  sourceLicenseId: string;
   releaseId?: string;
   representation?: CommercialLicensesRepresentation;
 }
@@ -44,7 +46,6 @@ export interface PatentSearchParams {
   status?: string;
   licenseType?: string;
   activity?: string;
-  legalEntityRut?: string;
   address?: string;
   establishmentId?: string;
   parcelId?: string;
@@ -157,6 +158,13 @@ export function createCommercialLicensesClient(
     body?: unknown;
     parse: ResponseParser<T>;
   }): Promise<T> {
+    const representation = options.representation ?? 'public';
+    if (representation !== 'public') {
+      throw new CommercialLicensesClientError(
+        'configuration',
+        'Commercial licenses representation is unavailable',
+      );
+    }
     const serviceKey = await resolveServiceKey(config.getServiceKey);
     const url = new URL(options.path, baseUrl);
     url.search = options.query.toString();
@@ -225,7 +233,7 @@ export function createCommercialLicensesClient(
       }
     }
 
-    if (options.representation === 'public' && parsed.metadata.data_marking !== 'PUBLIC') {
+    if (representation === 'public' && parsed.metadata.data_marking !== 'PUBLIC') {
       throw new CommercialLicensesClientError(
         'representation_mismatch',
         'Commercial licenses response exceeded the requested representation',
@@ -241,7 +249,7 @@ export function createCommercialLicensesClient(
       addQuery(query, 'effective_on', params.effectiveOn);
       return request({
         method: 'GET',
-        path: `v1/patents/${encodeURIComponent(params.municipalityCut)}/${encodeURIComponent(params.licenseId)}`,
+        path: `v1/patents/${encodeURIComponent(params.municipalityCut)}/${encodeURIComponent(params.sourceLicenseId)}`,
         query,
         releaseId: params.releaseId,
         effectiveOn: params.effectiveOn,
@@ -253,7 +261,7 @@ export function createCommercialLicensesClient(
     getPatentTimeline(params) {
       return request({
         method: 'GET',
-        path: `v1/patents/${encodeURIComponent(params.municipalityCut)}/${encodeURIComponent(params.licenseId)}/timeline`,
+        path: `v1/patents/${encodeURIComponent(params.municipalityCut)}/${encodeURIComponent(params.sourceLicenseId)}/timeline`,
         query: commonQuery(params),
         releaseId: params.releaseId,
         representation: params.representation,
@@ -267,7 +275,6 @@ export function createCommercialLicensesClient(
       addQuery(query, 'status', params.status);
       addQuery(query, 'license_type', params.licenseType);
       addQuery(query, 'activity', params.activity);
-      addQuery(query, 'legal_entity_rut', params.legalEntityRut);
       addQuery(query, 'address', params.address);
       addQuery(query, 'establishment_id', params.establishmentId);
       addQuery(query, 'parcel_id', params.parcelId);
@@ -432,7 +439,7 @@ function isPrivateHttpUrl(url: URL): boolean {
 function commonQuery(params: CommercialLicensesRequestOptions): URLSearchParams {
   const query = new URLSearchParams();
   addQuery(query, 'release_id', params.releaseId);
-  addQuery(query, 'representation', params.representation);
+  addQuery(query, 'representation', params.representation ?? 'public');
   return query;
 }
 
@@ -465,8 +472,13 @@ async function readJson(response: Response): Promise<unknown> {
 
 function throwHttpError(status: number, payload: unknown): never {
   const record = isRecord(payload) ? payload : undefined;
-  const upstreamCode = typeof record?.code === 'string' ? record.code : undefined;
-  const retryable = typeof record?.retryable === 'boolean' ? record.retryable : undefined;
+  const nestedError = isRecord(record?.error) ? record.error : undefined;
+  const upstreamCode = typeof nestedError?.code === 'string'
+    ? nestedError.code
+    : typeof record?.code === 'string' ? record.code : undefined;
+  const retryable = typeof nestedError?.retryable === 'boolean'
+    ? nestedError.retryable
+    : typeof record?.retryable === 'boolean' ? record.retryable : undefined;
   throw new CommercialLicensesClientError('http', 'Commercial licenses upstream returned an error', {
     status,
     upstreamCode,

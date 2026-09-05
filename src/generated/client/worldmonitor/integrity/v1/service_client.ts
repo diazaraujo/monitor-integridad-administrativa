@@ -6,11 +6,12 @@ export interface SearchPatentsRequest {
   status: string;
   licenseType: string;
   activity: string;
-  legalEntityRut: string;
   address: string;
   effectiveOn: string;
   cursor: string;
   pageSize: number;
+  establishmentId: string;
+  parcelId: string;
 }
 
 export interface SearchPatentsResponse {
@@ -93,11 +94,12 @@ export class IntegrityServiceClient {
     if (req.status != null && req.status !== "") params.set("status", String(req.status));
     if (req.licenseType != null && req.licenseType !== "") params.set("license_type", String(req.licenseType));
     if (req.activity != null && req.activity !== "") params.set("activity", String(req.activity));
-    if (req.legalEntityRut != null && req.legalEntityRut !== "") params.set("legal_entity_rut", String(req.legalEntityRut));
     if (req.address != null && req.address !== "") params.set("address", String(req.address));
     if (req.effectiveOn != null && req.effectiveOn !== "") params.set("effective_on", String(req.effectiveOn));
     if (req.cursor != null && req.cursor !== "") params.set("cursor", String(req.cursor));
     if (req.pageSize != null && req.pageSize !== 0) params.set("page_size", String(req.pageSize));
+    if (req.establishmentId != null && req.establishmentId !== "") params.set("establishment_id", String(req.establishmentId));
+    if (req.parcelId != null && req.parcelId !== "") params.set("parcel_id", String(req.parcelId));
     const url = this.baseURL + path + (params.toString() ? "?" + params.toString() : "");
 
     const headers: Record<string, string> = {

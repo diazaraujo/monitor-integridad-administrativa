@@ -13468,7 +13468,7 @@ paths:
             parameters:
                 - name: release_id
                   in: query
-                  description: Immutable upstream release to search. Empty uses the current release.
+                  description: Immutable upstream release to search. Empty allows an explicitly marked last-good fallback.
                   required: false
                   example: "example-id"
                   schema:
@@ -13490,13 +13490,6 @@ paths:
                 - name: activity
                   in: query
                   description: Case-insensitive activity text to match.
-                  required: false
-                  example: "example"
-                  schema:
-                    type: string
-                - name: legal_entity_rut
-                  in: query
-                  description: Chilean RUT of a legal entity associated with the patent.
                   required: false
                   example: "example"
                   schema:
@@ -13531,6 +13524,20 @@ paths:
                   schema:
                     type: integer
                     format: int32
+                - name: establishment_id
+                  in: query
+                  description: Producer-issued establishment identifier to match.
+                  required: false
+                  example: "example-id"
+                  schema:
+                    type: string
+                - name: parcel_id
+                  in: query
+                  description: Producer-issued parcel identifier to match.
+                  required: false
+                  example: "example-id"
+                  schema:
+                    type: string
                 - name: jmespath
                   in: query
                   description: |-
@@ -42199,7 +42206,7 @@ components:
                 releaseId:
                     type: string
                     maxLength: 300
-                    description: Immutable upstream release to search. Empty uses the current release.
+                    description: Immutable upstream release to search. Empty allows an explicitly marked last-good fallback.
                 status:
                     type: string
                     maxLength: 100
@@ -42212,10 +42219,6 @@ components:
                     type: string
                     maxLength: 300
                     description: Case-insensitive activity text to match.
-                legalEntityRut:
-                    type: string
-                    maxLength: 20
-                    description: Chilean RUT of a legal entity associated with the patent.
                 address:
                     type: string
                     maxLength: 500
@@ -42235,6 +42238,14 @@ components:
                     minimum: 0
                     format: int32
                     description: Maximum records to return. Zero uses the upstream default; maximum is 100.
+                establishmentId:
+                    type: string
+                    maxLength: 200
+                    description: Producer-issued establishment identifier to match.
+                parcelId:
+                    type: string
+                    maxLength: 200
+                    description: Producer-issued parcel identifier to match.
             description: |-
                 SearchPatentsRequest filters the municipal review queue. The municipality is
                  intentionally absent: it is derived from the authenticated actor's server-side scope.
@@ -42270,7 +42281,7 @@ components:
             properties:
                 licenseId:
                     type: string
-                    description: Stable identifier of the municipal patent.
+                    description: Stable municipality-issued source identifier of the patent.
                 municipalityCut:
                     type: string
                     description: Municipality code from the authenticated actor's scope.
