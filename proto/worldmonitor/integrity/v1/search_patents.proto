@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package worldmonitor.integrity.v1;
+
+import "buf/validate/validate.proto";
+import "sebuf/http/annotations.proto";
+
+// SearchPatentsRequest filters the municipal review queue. The municipality is
+// intentionally absent: it is derived from the authenticated actor's server-side scope.
+message SearchPatentsRequest {
+  string release_id = 1 [
+    (sebuf.http.query) = { name: "release_id" },
+    (buf.validate.field).string.max_len = 300
+  ];
+  string status = 2 [
+    (sebuf.http.query) = { name: "status" },
+    (buf.validate.field).string.max_len = 100
+  ];
+  string license_type = 3 [
+    (sebuf.http.query) = { name: "license_type" },
+    (buf.validate.field).string.max_len = 100
+  ];
+  string activity = 4 [
+    (sebuf.http.query) = { name: "activity" },
+    (buf.validate.field).string.max_len = 300
+  ];
+  string legal_entity_rut = 5 [
+    (sebuf.http.query) = { name: "legal_entity_rut" },
+    (buf.validate.field).string.max_len = 20
+  ];
+  string address = 6 [
+    (sebuf.http.query) = { name: "address" },
+    (buf.validate.field).string.max_len = 500
+  ];
+  string effective_on = 7 [
+    (sebuf.http.query) = { name: "effective_on" },
+    (buf.validate.field).string = {
+      max_len: 10,
+      pattern: "^$|^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    }
+  ];
+  string cursor = 8 [
+    (sebuf.http.query) = { name: "cursor" },
+    (buf.validate.field).string.max_len = 1000
+  ];
+  int32 page_size = 9 [
+    (sebuf.http.query) = { name: "page_size" },
+    (buf.validate.field).int32 = { gte: 0, lte: 100 }
+  ];
+}
+
+message PatentQueueItem {
+  string license_id = 1;
+  string municipality_cut = 2;
+  string license_number = 3;
+  string license_type = 4;
+  string reported_status = 5;
+  string provisional_status = 6;
+  string address = 7;
+  repeated string holder_display_names = 8;
+  repeated string activities = 9;
+  repeated string establishment_ids = 10;
+  string parcel_resolution_status = 11;
+  repeated string limitation_codes = 12;
+}
+
+message SearchPatentsResponse {
+  repeated PatentQueueItem items = 1;
+  string next_cursor = 2;
+  string release_id = 3;
+  string data_as_of = 4;
+  string availability = 5;
+  string data_marking = 6;
+  repeated string limitation_codes = 7;
+}
