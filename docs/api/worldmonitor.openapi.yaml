@@ -13468,55 +13468,64 @@ paths:
             parameters:
                 - name: release_id
                   in: query
+                  description: Immutable upstream release to search. Empty uses the current release.
                   required: false
                   example: "example-id"
                   schema:
                     type: string
                 - name: status
                   in: query
+                  description: Reported or provisional patent status to match.
                   required: false
                   example: "example"
                   schema:
                     type: string
                 - name: license_type
                   in: query
+                  description: Municipal patent type to match.
                   required: false
                   example: "all"
                   schema:
                     type: string
                 - name: activity
                   in: query
+                  description: Case-insensitive activity text to match.
                   required: false
                   example: "example"
                   schema:
                     type: string
                 - name: legal_entity_rut
                   in: query
+                  description: Chilean RUT of a legal entity associated with the patent.
                   required: false
                   example: "example"
                   schema:
                     type: string
                 - name: address
                   in: query
+                  description: Case-insensitive establishment address text to match.
                   required: false
                   example: "example"
                   schema:
                     type: string
                 - name: effective_on
                   in: query
+                  description: Date used to evaluate effective records, in YYYY-MM-DD form.
                   required: false
-                  example: "example"
+                  example: "2025-01-01"
                   schema:
                     type: string
                     pattern: '^$|^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
                 - name: cursor
                   in: query
+                  description: Opaque continuation cursor returned by the preceding page.
                   required: false
                   example: "next-page-token"
                   schema:
                     type: string
                 - name: page_size
                   in: query
+                  description: Maximum records to return. Zero uses the upstream default; maximum is 100.
                   required: false
                   example: 25
                   schema:
@@ -42190,33 +42199,42 @@ components:
                 releaseId:
                     type: string
                     maxLength: 300
+                    description: Immutable upstream release to search. Empty uses the current release.
                 status:
                     type: string
                     maxLength: 100
+                    description: Reported or provisional patent status to match.
                 licenseType:
                     type: string
                     maxLength: 100
+                    description: Municipal patent type to match.
                 activity:
                     type: string
                     maxLength: 300
+                    description: Case-insensitive activity text to match.
                 legalEntityRut:
                     type: string
                     maxLength: 20
+                    description: Chilean RUT of a legal entity associated with the patent.
                 address:
                     type: string
                     maxLength: 500
+                    description: Case-insensitive establishment address text to match.
                 effectiveOn:
                     type: string
                     maxLength: 10
                     pattern: ^$|^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+                    description: Date used to evaluate effective records, in YYYY-MM-DD form.
                 cursor:
                     type: string
                     maxLength: 1000
+                    description: Opaque continuation cursor returned by the preceding page.
                 pageSize:
                     type: integer
                     maximum: 100
                     minimum: 0
                     format: int32
+                    description: Maximum records to return. Zero uses the upstream default; maximum is 100.
             description: |-
                 SearchPatentsRequest filters the municipal review queue. The municipality is
                  intentionally absent: it is derived from the authenticated actor's server-side scope.
@@ -42229,53 +42247,71 @@ components:
                         $ref: '#/components/schemas/worldmonitor_integrity_v1_PatentQueueItem'
                 nextCursor:
                     type: string
+                    description: Opaque cursor for the next page. Empty means there is no next page.
                 releaseId:
                     type: string
+                    description: Immutable upstream release that produced this response.
                 dataAsOf:
                     type: string
+                    description: Upstream data timestamp or date.
                 availability:
                     type: string
+                    description: Upstream availability state for this result set.
                 dataMarking:
                     type: string
+                    description: Public-data marking supplied by the upstream dataset.
                 limitationCodes:
                     type: array
                     items:
                         type: string
+                        description: Machine-readable limitations applying to the response as a whole.
         worldmonitor_integrity_v1_PatentQueueItem:
             type: object
             properties:
                 licenseId:
                     type: string
+                    description: Stable identifier of the municipal patent.
                 municipalityCut:
                     type: string
+                    description: Municipality code from the authenticated actor's scope.
                 licenseNumber:
                     type: string
+                    description: Municipality-issued patent number.
                 licenseType:
                     type: string
+                    description: Reported municipal patent type.
                 reportedStatus:
                     type: string
+                    description: Status reported by the source municipality.
                 provisionalStatus:
                     type: string
+                    description: Provisional status derived by the upstream normalization pipeline.
                 address:
                     type: string
+                    description: Public establishment address associated with the patent.
                 holderDisplayNames:
                     type: array
                     items:
                         type: string
+                        description: Public display names of associated patent holders.
                 activities:
                     type: array
                     items:
                         type: string
+                        description: Economic activities registered for the patent.
                 establishmentIds:
                     type: array
                     items:
                         type: string
+                        description: Establishment identifiers associated with the patent.
                 parcelResolutionStatus:
                     type: string
+                    description: Resolution status of the associated parcel.
                 limitationCodes:
                     type: array
                     items:
                         type: string
+                        description: Machine-readable limitations affecting interpretation of this item.
         worldmonitor_intelligence_v1_GetRiskScoresRequest:
             type: object
             properties:

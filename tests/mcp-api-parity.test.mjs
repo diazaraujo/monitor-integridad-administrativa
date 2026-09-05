@@ -329,6 +329,8 @@ const EXCLUDED_FROM_MCP_PARITY = new Map([
     "deferred-to-future-tool: pure-read but no MCP tool exposes cf:radar:ddos:v1 yet — bundle into a future expanded-domain tool"],
   ["GET /api/infrastructure/v1/list-internet-traffic-anomalies",
     "deferred-to-future-tool: pure-read but no MCP tool exposes cf:radar:traffic-anomalies:v1 yet — bundle into a future expanded-domain tool"],
+  ["GET /api/integrity/v1/search-patents",
+    "deferred-to-future-tool: actor-scoped municipal review queue requires a future integrity-review tool with equivalent identity and municipality controls"],
   ["GET /api/intelligence/v1/get-country-energy-profile",
     "deferred-to-future-tool: pure-read but no MCP tool exposes energy:spr-policies:v1 yet — bundle into a future expanded-domain tool"],
   ["GET /api/intelligence/v1/get-gdelt-topic-timeline",

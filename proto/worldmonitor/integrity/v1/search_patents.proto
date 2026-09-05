@@ -8,30 +8,37 @@ import "sebuf/http/annotations.proto";
 // SearchPatentsRequest filters the municipal review queue. The municipality is
 // intentionally absent: it is derived from the authenticated actor's server-side scope.
 message SearchPatentsRequest {
+  // Immutable upstream release to search. Empty uses the current release.
   string release_id = 1 [
     (sebuf.http.query) = { name: "release_id" },
     (buf.validate.field).string.max_len = 300
   ];
+  // Reported or provisional patent status to match.
   string status = 2 [
     (sebuf.http.query) = { name: "status" },
     (buf.validate.field).string.max_len = 100
   ];
+  // Municipal patent type to match.
   string license_type = 3 [
     (sebuf.http.query) = { name: "license_type" },
     (buf.validate.field).string.max_len = 100
   ];
+  // Case-insensitive activity text to match.
   string activity = 4 [
     (sebuf.http.query) = { name: "activity" },
     (buf.validate.field).string.max_len = 300
   ];
+  // Chilean RUT of a legal entity associated with the patent.
   string legal_entity_rut = 5 [
     (sebuf.http.query) = { name: "legal_entity_rut" },
     (buf.validate.field).string.max_len = 20
   ];
+  // Case-insensitive establishment address text to match.
   string address = 6 [
     (sebuf.http.query) = { name: "address" },
     (buf.validate.field).string.max_len = 500
   ];
+  // Date used to evaluate effective records, in YYYY-MM-DD form.
   string effective_on = 7 [
     (sebuf.http.query) = { name: "effective_on" },
     (buf.validate.field).string = {
@@ -39,10 +46,12 @@ message SearchPatentsRequest {
       pattern: "^$|^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
     }
   ];
+  // Opaque continuation cursor returned by the preceding page.
   string cursor = 8 [
     (sebuf.http.query) = { name: "cursor" },
     (buf.validate.field).string.max_len = 1000
   ];
+  // Maximum records to return. Zero uses the upstream default; maximum is 100.
   int32 page_size = 9 [
     (sebuf.http.query) = { name: "page_size" },
     (buf.validate.field).int32 = { gte: 0, lte: 100 }
@@ -50,26 +59,45 @@ message SearchPatentsRequest {
 }
 
 message PatentQueueItem {
+  // Stable identifier of the municipal patent.
   string license_id = 1;
+  // Municipality code from the authenticated actor's scope.
   string municipality_cut = 2;
+  // Municipality-issued patent number.
   string license_number = 3;
+  // Reported municipal patent type.
   string license_type = 4;
+  // Status reported by the source municipality.
   string reported_status = 5;
+  // Provisional status derived by the upstream normalization pipeline.
   string provisional_status = 6;
+  // Public establishment address associated with the patent.
   string address = 7;
+  // Public display names of associated patent holders.
   repeated string holder_display_names = 8;
+  // Economic activities registered for the patent.
   repeated string activities = 9;
+  // Establishment identifiers associated with the patent.
   repeated string establishment_ids = 10;
+  // Resolution status of the associated parcel.
   string parcel_resolution_status = 11;
+  // Machine-readable limitations affecting interpretation of this item.
   repeated string limitation_codes = 12;
 }
 
 message SearchPatentsResponse {
+  // Municipality-scoped patents available for review.
   repeated PatentQueueItem items = 1;
+  // Opaque cursor for the next page. Empty means there is no next page.
   string next_cursor = 2;
+  // Immutable upstream release that produced this response.
   string release_id = 3;
+  // Upstream data timestamp or date.
   string data_as_of = 4;
+  // Upstream availability state for this result set.
   string availability = 5;
+  // Public-data marking supplied by the upstream dataset.
   string data_marking = 6;
+  // Machine-readable limitations applying to the response as a whole.
   repeated string limitation_codes = 7;
 }
