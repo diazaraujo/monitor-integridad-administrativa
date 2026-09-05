@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package worldmonitor.integrity.v1;
+
+import "sebuf/http/annotations.proto";
+import "worldmonitor/integrity/v1/search_patents.proto";
+
+// IntegrityService exposes the municipality-scoped administrative review workflow.
+service IntegrityService {
+  option (sebuf.http.service_config) = {base_path: "/api/integrity/v1"};
+
+  // SearchPatents returns the authenticated actor's municipal review queue.
+  rpc SearchPatents(SearchPatentsRequest) returns (SearchPatentsResponse) {
+    option (sebuf.http.config) = {path: "/search-patents", method: HTTP_METHOD_GET};
+  }
+}

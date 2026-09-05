@@ -9,6 +9,7 @@ DOCS_API_DIR := docs/api
 
 # Go install settings
 GO_PROXY := GOPROXY=direct
+PUBLIC_GO_PROXY := GOPROXY=https://proxy.golang.org,direct
 GO_PRIVATE := GOPRIVATE=github.com/SebastienMelki
 GO_INSTALL := $(GO_PROXY) $(GO_PRIVATE) go install
 
@@ -29,7 +30,7 @@ install-buf: ## Install buf CLI
 		echo "buf already installed: $$(buf --version)"; \
 	else \
 		echo "Installing buf..."; \
-		$(GO_INSTALL) github.com/bufbuild/buf/cmd/buf@$(BUF_VERSION); \
+		$(PUBLIC_GO_PROXY) go install github.com/bufbuild/buf/cmd/buf@$(BUF_VERSION) && \
 		echo "buf installed!"; \
 	fi
 

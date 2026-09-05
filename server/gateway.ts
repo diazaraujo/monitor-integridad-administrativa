@@ -194,6 +194,10 @@ const TIER_CDN_CACHE: Record<CacheTier, string | null> = {
 };
 
 const RPC_CACHE_TIER: Record<string, CacheTier> = {
+  // Results are selected by authenticated actor scope and must never be shared
+  // across users or municipalities by an intermediary cache.
+  '/api/integrity/v1/search-patents': 'no-store',
+
   // 'live' tier — bbox-quantized + tanker-aware caching upstream of the
   // 60s in-handler cache, absorbing identical-bbox requests at the CDN
   // before they hit this Vercel function. Energy Atlas live-tanker layer.
