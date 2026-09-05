@@ -77,6 +77,7 @@ describe('IntegrityService.searchPatents', () => {
 
     const result = await searchPatents(context(), {
       releaseId: '', status: 'vigente', licenseType: '', activity: '',
+      legalEntityRut: '',
       address: 'Siempre Viva', effectiveOn: '', cursor: '', pageSize: 20,
       establishmentId: 'est-1', parcelId: 'parcel-1',
     });
@@ -112,7 +113,8 @@ describe('IntegrityService.searchPatents', () => {
 
     await expect(searchPatents(context(), {
       releaseId: '', status: '', licenseType: '', activity: '', address: '',
-      effectiveOn: '', cursor: '', pageSize: 0, establishmentId: '', parcelId: '',
+      legalEntityRut: '', effectiveOn: '', cursor: '', pageSize: 0,
+      establishmentId: '', parcelId: '',
     })).rejects.toMatchObject({ statusCode: 401 });
     expect(createClient).not.toHaveBeenCalled();
   });
@@ -129,7 +131,8 @@ describe('IntegrityService.searchPatents', () => {
 
     await expect(searchPatents(context(), {
       releaseId: '', status: '', licenseType: '', activity: '', address: '',
-      effectiveOn: '', cursor: '', pageSize: 0, establishmentId: '', parcelId: '',
+      legalEntityRut: '', effectiveOn: '', cursor: '', pageSize: 0,
+      establishmentId: '', parcelId: '',
     })).rejects.toMatchObject({ statusCode: 503, message: 'Commercial licenses unavailable' });
   });
 
@@ -149,7 +152,8 @@ describe('IntegrityService.searchPatents', () => {
 
       await expect(searchPatents(context(), {
         releaseId: 'pinned-release', status: '', licenseType: '', activity: '', address: '',
-        effectiveOn: '', cursor: '', pageSize: 0, establishmentId: '', parcelId: '',
+        legalEntityRut: '', effectiveOn: '', cursor: '', pageSize: 0,
+        establishmentId: '', parcelId: '',
       })).rejects.toMatchObject({ statusCode: expectedStatus });
     }
   });
@@ -163,8 +167,23 @@ describe('IntegrityService.searchPatents', () => {
 
     await expect(searchPatents(context(), {
       releaseId: '', status: '', licenseType: '', activity: '', address: '',
-      effectiveOn: '', cursor: '', pageSize: 0, establishmentId: '', parcelId: '',
+      legalEntityRut: '', effectiveOn: '', cursor: '', pageSize: 0,
+      establishmentId: '', parcelId: '',
     })).rejects.toMatchObject({ statusCode: 403 });
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  test('rejects the deprecated RUT filter before contacting the producer', async () => {
+    const createClient = vi.fn();
+    __setSearchPatentsDependenciesForTests({
+      resolveActorScope: async () => actor,
+      createClient,
+    });
+    await expect(searchPatents(context(), {
+      releaseId: '', status: '', licenseType: '', activity: '', address: '',
+      legalEntityRut: '76543210-K', effectiveOn: '', cursor: '', pageSize: 0,
+      establishmentId: '', parcelId: '',
+    })).rejects.toMatchObject({ statusCode: 400 });
     expect(createClient).not.toHaveBeenCalled();
   });
 });

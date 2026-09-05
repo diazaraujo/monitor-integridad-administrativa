@@ -6,6 +6,8 @@ export interface SearchPatentsRequest {
   status: string;
   licenseType: string;
   activity: string;
+  /** @deprecated */
+  legalEntityRut: string;
   address: string;
   effectiveOn: string;
   cursor: string;
@@ -105,6 +107,7 @@ export function createIntegrityServiceRoutes(
             status: params.get("status") ?? "",
             licenseType: params.get("license_type") ?? "",
             activity: params.get("activity") ?? "",
+            legalEntityRut: params.get("legal_entity_rut") ?? "",
             address: params.get("address") ?? "",
             effectiveOn: params.get("effective_on") ?? "",
             cursor: params.get("cursor") ?? "",

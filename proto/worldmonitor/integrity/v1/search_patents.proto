@@ -28,8 +28,12 @@ message SearchPatentsRequest {
     (sebuf.http.query) = { name: "activity" },
     (buf.validate.field).string.max_len = 300
   ];
-  reserved 5;
-  reserved "legal_entity_rut";
+  // Deprecated compatibility field. Non-empty values are rejected because the producer has no queryable RUT.
+  string legal_entity_rut = 5 [
+    deprecated = true,
+    (sebuf.http.query) = { name: "legal_entity_rut" },
+    (buf.validate.field).string.max_len = 20
+  ];
   // Case-insensitive establishment address text to match.
   string address = 6 [
     (sebuf.http.query) = { name: "address" },

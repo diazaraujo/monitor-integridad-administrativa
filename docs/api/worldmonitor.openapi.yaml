@@ -13494,6 +13494,14 @@ paths:
                   example: "example"
                   schema:
                     type: string
+                - name: legal_entity_rut
+                  deprecated: true
+                  in: query
+                  description: Deprecated compatibility field. Non-empty values are rejected because the producer has no queryable RUT.
+                  required: false
+                  example: "example"
+                  schema:
+                    type: string
                 - name: address
                   in: query
                   description: Case-insensitive establishment address text to match.
@@ -42219,6 +42227,11 @@ components:
                     type: string
                     maxLength: 300
                     description: Case-insensitive activity text to match.
+                legalEntityRut:
+                    deprecated: true
+                    type: string
+                    maxLength: 20
+                    description: Deprecated compatibility field. Non-empty values are rejected because the producer has no queryable RUT.
                 address:
                     type: string
                     maxLength: 500

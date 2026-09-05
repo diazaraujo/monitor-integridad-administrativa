@@ -6,6 +6,8 @@ export interface SearchPatentsRequest {
   status: string;
   licenseType: string;
   activity: string;
+  /** @deprecated */
+  legalEntityRut: string;
   address: string;
   effectiveOn: string;
   cursor: string;
@@ -94,6 +96,7 @@ export class IntegrityServiceClient {
     if (req.status != null && req.status !== "") params.set("status", String(req.status));
     if (req.licenseType != null && req.licenseType !== "") params.set("license_type", String(req.licenseType));
     if (req.activity != null && req.activity !== "") params.set("activity", String(req.activity));
+    if (req.legalEntityRut != null && req.legalEntityRut !== "") params.set("legal_entity_rut", String(req.legalEntityRut));
     if (req.address != null && req.address !== "") params.set("address", String(req.address));
     if (req.effectiveOn != null && req.effectiveOn !== "") params.set("effective_on", String(req.effectiveOn));
     if (req.cursor != null && req.cursor !== "") params.set("cursor", String(req.cursor));

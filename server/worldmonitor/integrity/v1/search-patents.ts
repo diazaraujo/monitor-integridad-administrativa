@@ -87,6 +87,9 @@ export const searchPatents: IntegrityServiceHandler['searchPatents'] = async (
   if (actor.representation !== 'public') {
     throw new ApiError(403, 'Municipal restricted representation unavailable', '');
   }
+  if (optional(req.legalEntityRut) !== undefined) {
+    throw new ApiError(400, 'legal_entity_rut is not a supported filter', '');
+  }
 
   try {
     const response = await dependencies.createClient().searchPatents({
