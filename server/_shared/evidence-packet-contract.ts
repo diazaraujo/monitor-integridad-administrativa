@@ -296,9 +296,9 @@ const legalAuthoritySchema = z.object({
 const permittedNextActionSchema = z.object({
   action_id: nonEmpty,
   action_type: z.enum([
-    'OpenLicenseReview', 'AssignReviewer', 'RequestMissingRequirement', 'ResolveEstablishment',
+    'OpenLicenseReview', 'AssignReviewer', 'NoObservations', 'RequestMissingRequirement', 'ResolveEstablishment',
     'RecordAlternativeExplanation', 'RecommendInspection', 'RecordInspectionOutcome',
-    'RecommendAdministrativeMeasure', 'RecordOfficialDecision', 'RequestCorrection', 'CloseReview',
+    'RecommendReferral', 'RecommendAdministrativeMeasure', 'RecordOfficialDecision', 'RequestCorrection', 'CloseReview',
   ]),
   permitted: z.boolean(),
   authorized_roles: z.array(nonEmpty),

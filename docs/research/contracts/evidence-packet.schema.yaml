@@ -785,10 +785,12 @@ $defs:
         enum:
           - OpenLicenseReview
           - AssignReviewer
+          - NoObservations
           - RequestMissingRequirement
           - ResolveEstablishment
           - RecordAlternativeExplanation
           - RecommendInspection
+          - RecommendReferral
           - RecordInspectionOutcome
           - RecommendAdministrativeMeasure
           - RecordOfficialDecision

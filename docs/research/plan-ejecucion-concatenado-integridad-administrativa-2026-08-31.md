@@ -150,3 +150,18 @@ local no existe, no hay despliegue.
 3. Ejecutar E con una patente provisoria real disponible.
 4. Instalar una vez el agente descrito en `ops/enigma/README.md`.
 5. Fusionar únicamente con checks verdes; desde ese punto F opera automáticamente.
+
+## Ejecución vertical posterior al contrato vivo
+
+El incremento del issue #23 se ejecuta como una sola vertical verificable:
+
+1. ampliar `IntegrityService` con apertura, lectura por versión, asignación y Actions;
+2. persistir cada transición mediante CAS, idempotencia y ledger append-only;
+3. publicar `/integrity` como interfaz municipal especializada;
+4. desplegar Convex y provisionar actores mediante el runbook de aceptación;
+5. ejecutar el caso provisorio real y el reread posterior al reinicio.
+
+Los puntos 1–3 pueden quedar listos en un PR. Los puntos 4–5 son gates operacionales posteriores al
+merge y se documentan en
+[`runbook-aceptacion-luis-cordero.md`](runbook-aceptacion-luis-cordero.md); no se consideran probados
+por una suite local ni por el merge.

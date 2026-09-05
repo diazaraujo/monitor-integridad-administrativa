@@ -457,7 +457,7 @@ function validateCommitPayload(args: {
     || action.case_id !== snapshot.case_id
     || packet.case_id !== snapshot.case_id
     || action.license_id !== snapshot.license_id
-    || license.license_id !== snapshot.license_id
+    || license.source_license_id !== snapshot.license_id
     || packetRef.packet_id !== packet.packet_id
     || actionPacketRef.packet_id !== packetRef.packet_id
     || packetRef.packet_content_sha256 !== reproduction.packet_content_sha256
@@ -962,5 +962,415 @@ export const commitAssignReviewer = internalMutation({
       actionId: validated.actionId, createdAt: validated.occurredAt,
     });
     return { kind: "committed" as const };
+  },
+});
+
+const WORKFLOW_ACTIONS = new Set([
+  "OpenLicenseReview", "AssignReviewer", "NoObservations", "RequestMissingRequirement",
+  "RecordAlternativeExplanation",
+  "RecommendInspection", "RecommendReferral", "RecordInspectionOutcome",
+  "RecommendAdministrativeMeasure", "RecordOfficialDecision", "RequestCorrection",
+  "CloseReview",
+]);
+const WORKFLOW_ROLES = new Set(["rentas", "control", "coordinator", "fiscalizacion"]);
+const WORKFLOW_LEGAL_EFFECTS = new Set([
+  "none", "external_communication_only", "reflects_external_act",
+]);
+const WORKFLOW_REVIEWER_ACTIONS = new Set([
+  "NoObservations", "RequestMissingRequirement", "RecordAlternativeExplanation",
+  "RecommendInspection", "RecommendReferral", "RecordInspectionOutcome",
+  "RecommendAdministrativeMeasure", "RequestCorrection",
+]);
+const WORKFLOW_ACTION_ROLES: Record<string, readonly string[]> = {
+  NoObservations: ["rentas", "control"],
+  RequestMissingRequirement: ["rentas", "control"],
+  RecordAlternativeExplanation: ["rentas", "control"],
+  RecommendInspection: ["control", "fiscalizacion"],
+  RecommendReferral: ["control", "fiscalizacion"],
+  RecordInspectionOutcome: ["control", "fiscalizacion"],
+  RecommendAdministrativeMeasure: ["control", "fiscalizacion"],
+  RecordOfficialDecision: ["control", "coordinator"],
+  RequestCorrection: ["rentas", "control"],
+  CloseReview: ["control", "coordinator"],
+};
+
+// One operator-facing transaction provisions the compatible authority rows
+// required by the opening, assignment and post-assignment write fences.
+export const provisionWorkflowActor = internalMutation({
+  args: {
+    actorId: v.string(), municipalityCut: v.string(), authorityVersion: v.number(),
+    roles: v.array(v.string()), validFrom: v.string(),
+  },
+  handler: async (ctx, args) => {
+    if (!IDENTIFIER.test(args.actorId) || !CUT.test(args.municipalityCut)
+      || !Number.isSafeInteger(args.authorityVersion) || args.authorityVersion < 1
+      || args.roles.length === 0 || new Set(args.roles).size !== args.roles.length
+      || args.roles.some((role) => !WORKFLOW_ROLES.has(role)) || !validInstant(args.validFrom)
+      || (args.roles.includes("coordinator") && args.roles.length !== 1)) {
+      throw new ConvexError("INVALID_WORKFLOW_ACTOR");
+    }
+    const authorityId = `integrity:${args.municipalityCut}:${args.actorId}`;
+    const permittedActions = [...new Set([
+      ...(args.roles.some((role) => role === "rentas" || role === "control")
+        ? ["OpenLicenseReview"] : []),
+      ...(args.roles.includes("coordinator") ? ["AssignReviewer"] : []),
+      ...Object.entries(WORKFLOW_ACTION_ROLES)
+        .filter(([, roles]) => args.roles.some((role) => roles.includes(role)))
+        .map(([action]) => action),
+    ])];
+    const existingWorkflowRows = await ctx.db.query("reviewWorkflowAuthorityGrants")
+      .withIndex("by_authorityId", (q) => q.eq("authorityId", authorityId)).collect();
+    const existingWorkflow = await uniqueByIndex(existingWorkflowRows);
+    if (existingWorkflow && args.authorityVersion <= existingWorkflow.authorityVersion) {
+      throw new ConvexError("INVALID_WORKFLOW_AUTHORITY_ADVANCE");
+    }
+    const now = Date.now();
+    const workflowValue = {
+      authorityId, authorityVersion: args.authorityVersion, actorId: args.actorId,
+      municipalityCut: args.municipalityCut, roles: args.roles,
+      permittedActions, validFrom: args.validFrom, updatedAt: now,
+    } as any;
+    if (existingWorkflow) await ctx.db.replace(existingWorkflow._id, workflowValue);
+    else await ctx.db.insert("reviewWorkflowAuthorityGrants", workflowValue);
+
+    const reviewerRoles = args.roles.filter((role) => role === "rentas" || role === "control");
+    if (reviewerRoles.length > 0) {
+      const openingRows = await ctx.db.query("reviewAuthorityGrants")
+        .withIndex("by_authorityId", (q) => q.eq("authorityId", authorityId)).collect();
+      const opening = await uniqueByIndex(openingRows);
+      const openingValue = {
+        authorityId, authorityVersion: args.authorityVersion, actorId: args.actorId,
+        municipalityCut: args.municipalityCut, roles: reviewerRoles,
+        permittedActions: [ACTION],
+        allowedMarkings: ["PUBLIC", "MUNICIPAL_INTERNAL", "ACTIVE_REVIEW"],
+        allowedRepresentations: ["public"], validFrom: args.validFrom, updatedAt: now,
+      } as any;
+      if (opening) await ctx.db.replace(opening._id, openingValue);
+      else await ctx.db.insert("reviewAuthorityGrants", openingValue);
+    }
+    if (args.roles.includes("coordinator")) {
+      const assignmentRows = await ctx.db.query("reviewAssignmentAuthorityGrants")
+        .withIndex("by_authorityId", (q) => q.eq("authorityId", authorityId)).collect();
+      const assignment = await uniqueByIndex(assignmentRows);
+      const assignmentValue = {
+        authorityId, authorityVersion: args.authorityVersion, actorId: args.actorId,
+        municipalityCut: args.municipalityCut, roles: ["coordinator"],
+        permittedActions: [ASSIGN_ACTION], validFrom: args.validFrom, updatedAt: now,
+      } as any;
+      if (assignment) await ctx.db.replace(assignment._id, assignmentValue);
+      else await ctx.db.insert("reviewAssignmentAuthorityGrants", assignmentValue);
+    }
+    if (args.roles.some((role) => ["rentas", "control", "fiscalizacion"].includes(role))) {
+      const reviewerRows = await ctx.db.query("reviewReviewerEligibilityGrants")
+        .withIndex("by_reviewer_municipality", (q) => q.eq("reviewerId", args.actorId)
+          .eq("municipalityCut", args.municipalityCut)).collect();
+      const reviewer = await uniqueByIndex(reviewerRows);
+      const reviewerValue = {
+        reviewerId: args.actorId, reviewerVersion: args.authorityVersion,
+        municipalityCut: args.municipalityCut, eligible: true,
+        validFrom: args.validFrom, updatedAt: now,
+      };
+      if (reviewer) await ctx.db.replace(reviewer._id, reviewerValue);
+      else await ctx.db.insert("reviewReviewerEligibilityGrants", reviewerValue);
+    }
+    await touchWriteLock(ctx, now);
+    return { authorityId, authorityVersion: args.authorityVersion, permittedActions };
+  },
+});
+
+function expectedWorkflowStatus(action: string): string {
+  if (action === "CloseReview") return "closed";
+  if (action === "RequestMissingRequirement" || action === "RequestCorrection") {
+    return "waiting_external";
+  }
+  return "in_review";
+}
+
+export const upsertWorkflowAuthorityGrant = internalMutation({
+  args: {
+    authorityId: v.string(), authorityVersion: v.number(), actorId: v.string(),
+    municipalityCut: v.string(), roles: v.array(v.string()),
+    permittedActions: v.array(v.string()), validFrom: v.string(),
+    validTo: v.union(v.string(), v.null()), revokedAt: v.union(v.string(), v.null()),
+  },
+  handler: async (ctx, args) => {
+    if (!IDENTIFIER.test(args.authorityId) || !IDENTIFIER.test(args.actorId)
+      || !CUT.test(args.municipalityCut) || !Number.isSafeInteger(args.authorityVersion)
+      || args.authorityVersion < 1 || args.roles.length === 0
+      || new Set(args.roles).size !== args.roles.length
+      || args.roles.some((role) => !WORKFLOW_ROLES.has(role))
+      || args.permittedActions.length === 0
+      || new Set(args.permittedActions).size !== args.permittedActions.length
+      || args.permittedActions.some((action) => !WORKFLOW_ACTIONS.has(action))
+      || !validInstant(args.validFrom)
+      || (args.validTo !== null && (!validInstant(args.validTo)
+        || Date.parse(args.validTo) <= Date.parse(args.validFrom)))
+      || (args.revokedAt !== null && !validInstant(args.revokedAt))) {
+      throw new ConvexError("INVALID_WORKFLOW_AUTHORITY_GRANT");
+    }
+    const rows = await ctx.db.query("reviewWorkflowAuthorityGrants")
+      .withIndex("by_authorityId", (q) => q.eq("authorityId", args.authorityId)).collect();
+    const existing = await uniqueByIndex(rows);
+    if (existing && (existing.actorId !== args.actorId
+      || existing.municipalityCut !== args.municipalityCut
+      || args.authorityVersion <= existing.authorityVersion)) {
+      throw new ConvexError("INVALID_WORKFLOW_AUTHORITY_ADVANCE");
+    }
+    const value = {
+      authorityId: args.authorityId, authorityVersion: args.authorityVersion,
+      actorId: args.actorId, municipalityCut: args.municipalityCut,
+      roles: args.roles, permittedActions: args.permittedActions,
+      validFrom: args.validFrom, validTo: args.validTo ?? undefined,
+      revokedAt: args.revokedAt ?? undefined, updatedAt: Date.now(),
+    } as any;
+    if (existing) await ctx.db.replace(existing._id, value);
+    else await ctx.db.insert("reviewWorkflowAuthorityGrants", value);
+    await touchWriteLock(ctx, Date.now());
+    return { authorityId: args.authorityId, authorityVersion: args.authorityVersion };
+  },
+});
+
+export const readWorkflowAuthorityGrant = internalQuery({
+  args: { actorId: v.string(), municipalityCut: v.string() },
+  handler: async (ctx, args) => {
+    if (!IDENTIFIER.test(args.actorId) || !CUT.test(args.municipalityCut)) failIntegrity();
+    const rows = await ctx.db.query("reviewWorkflowAuthorityGrants")
+      .withIndex("by_actor_municipality", (q) => q.eq("actorId", args.actorId)
+        .eq("municipalityCut", args.municipalityCut)).collect();
+    const grant = await uniqueByIndex(rows);
+    if (!grant) return null;
+    return {
+      authority_id: grant.authorityId, authority_version: grant.authorityVersion,
+      actor_id: grant.actorId, municipality_cut: grant.municipalityCut,
+      roles: grant.roles, permitted_actions: grant.permittedActions,
+      valid_from: grant.validFrom, valid_to: grant.validTo ?? null,
+      revoked_at: grant.revokedAt ?? null,
+    };
+  },
+});
+
+function decodeStoredPacket(chunks: { ordinal: number; encodedBase64: string; byteLength: number }[]): string {
+  const ordered = [...chunks].sort((a, b) => a.ordinal - b.ordinal);
+  if (ordered.some((chunk, index) => chunk.ordinal !== index)) failIntegrity();
+  try {
+    const binary = ordered.map((chunk) => {
+      const value = atob(chunk.encodedBase64);
+      if (value.length !== chunk.byteLength) failIntegrity();
+      return value;
+    }).join("");
+    return new TextDecoder("utf-8", { fatal: true }).decode(
+      Uint8Array.from(binary, (character) => character.charCodeAt(0)),
+    );
+  } catch {
+    return failIntegrity();
+  }
+}
+
+export const readReviewCaseDossier = internalQuery({
+  args: {
+    caseId: v.string(), caseVersion: v.number(), municipalityCut: v.string(),
+    actorId: v.string(), maxPacketBytes: v.number(),
+  },
+  handler: async (ctx, args) => {
+    if (!IDENTIFIER.test(args.caseId) || !IDENTIFIER.test(args.actorId)
+      || !CUT.test(args.municipalityCut) || !Number.isSafeInteger(args.caseVersion)
+      || args.caseVersion < 1 || !Number.isSafeInteger(args.maxPacketBytes)
+      || args.maxPacketBytes < 1 || args.maxPacketBytes > REVIEW_PACKET_MAX_BYTES) failIntegrity();
+    const authorityRows = await ctx.db.query("reviewWorkflowAuthorityGrants")
+      .withIndex("by_actor_municipality", (q) => q.eq("actorId", args.actorId)
+        .eq("municipalityCut", args.municipalityCut)).collect();
+    const authority = await uniqueByIndex(authorityRows);
+    const now = Date.now();
+    if (!authority || authority.revokedAt !== undefined || Date.parse(authority.validFrom) > now
+      || (authority.validTo !== undefined && Date.parse(authority.validTo) < now)) return null;
+    const rows = await ctx.db.query("reviewCases").withIndex("by_case_version", (q) => q
+      .eq("caseId", args.caseId).eq("caseVersion", args.caseVersion)).collect();
+    const row = await uniqueByIndex(rows);
+    if (!row || row.municipalityCut !== args.municipalityCut) return null;
+    const packetRows = await ctx.db.query("reviewEvidencePackets")
+      .withIndex("by_packetId", (q) => q.eq("packetId", row.packetId)).collect();
+    const packet = await uniqueByIndex(packetRows);
+    if (!packet || packet.packetBytes > args.maxPacketBytes) failIntegrity();
+    const chunks = await ctx.db.query("reviewEvidencePacketChunks")
+      .withIndex("by_packet_ordinal", (q) => q.eq("packetId", row.packetId)).collect();
+    if (chunks.length !== packet.chunkCount) failIntegrity();
+    const actionRows = await ctx.db.query("reviewActions")
+      .withIndex("by_case_version", (q) => q.eq("caseId", args.caseId)).collect();
+    const actions = actionRows.filter((action) => action.resultingCaseVersion <= args.caseVersion)
+      .sort((a, b) => a.resultingCaseVersion - b.resultingCaseVersion);
+    return {
+      caseJson: row.snapshotJson,
+      evidencePacketJson: decodeStoredPacket(chunks),
+      actionJson: actions.map((action) => action.actionJson),
+    };
+  },
+});
+
+async function findWorkflowOperation(
+  ctx: QueryCtx | MutationCtx, actorId: string, actionType: string, operationKeySha256: string,
+) {
+  const rows = await ctx.db.query("reviewOperations").withIndex("by_actor_action_key", (q) => q
+    .eq("actorId", actorId).eq("actionType", actionType as any)
+    .eq("operationKeySha256", operationKeySha256)).collect();
+  return await uniqueByIndex(rows);
+}
+
+export const readReviewActionOperation = internalQuery({
+  args: { actorId: v.string(), municipalityCut: v.string(), actionType: v.string(),
+    operationKeySha256: v.string(), commandSha256: v.string() },
+  handler: async (ctx, args) => {
+    validateLookup(args);
+    if (!WORKFLOW_ACTIONS.has(args.actionType)) failIntegrity();
+    const binding = await findWorkflowOperation(
+      ctx, args.actorId, args.actionType, args.operationKeySha256,
+    );
+    if (!binding) return { kind: "miss" as const };
+    if (binding.commandSha256 !== args.commandSha256
+      || binding.municipalityCut !== args.municipalityCut) {
+      return { kind: "operation_conflict" as const };
+    }
+    const actionRows = await ctx.db.query("reviewActions")
+      .withIndex("by_actionId", (q) => q.eq("actionId", binding.actionId)).collect();
+    const storedAction = await uniqueByIndex(actionRows);
+    if (!storedAction || storedAction.caseId !== binding.caseId) failIntegrity();
+    const cases = await ctx.db.query("reviewCases").withIndex("by_case_version", (q) => q
+      .eq("caseId", binding.caseId)
+      .eq("caseVersion", storedAction.resultingCaseVersion)).collect();
+    const storedCase = await uniqueByIndex(cases);
+    if (!storedCase) failIntegrity();
+    return { kind: "replayed" as const, caseJson: storedCase.snapshotJson,
+      actionId: binding.actionId };
+  },
+});
+
+export const commitReviewAction = internalMutation({
+  args: { request: v.any() },
+  handler: async (ctx, args) => {
+    const request = record(args.request);
+    const previous = record(request?.previousCaseSnapshot);
+    const resulting = record(request?.resultingCaseSnapshot);
+    const action = record(request?.action);
+    const fence = record(request?.authorityFence);
+    const actorRoles = stringArray(action?.actor_roles);
+    const actionType = String(action?.action_type ?? "");
+    const assignment = record(previous?.assignment);
+    const resultingAssignment = record(resulting?.assignment);
+    const previousPacketRef = record(previous?.packet_ref);
+    const resultingPacketRef = record(resulting?.packet_ref);
+    const officialOutcome = record(resulting?.official_outcome);
+    const allowedRoles = WORKFLOW_ACTION_ROLES[actionType] ?? [];
+    if (!request || !previous || !resulting || !action || !fence || !actorRoles
+      || !WORKFLOW_ACTIONS.has(actionType)
+      || !SHA256.test(String(request.operationKeySha256))
+      || !SHA256.test(String(request.commandSha256))
+      || action.command_sha256 !== request.commandSha256
+      || action.case_id !== previous.case_id || resulting.case_id !== previous.case_id
+      || action.municipality_cut !== previous.municipality_cut
+      || resulting.municipality_cut !== previous.municipality_cut
+      || action.license_id !== previous.license_id || resulting.license_id !== previous.license_id
+      || previous.status === "closed" || resulting.status !== expectedWorkflowStatus(actionType)
+      || previous.created_at !== resulting.created_at
+      || !previousPacketRef || !resultingPacketRef
+      || !sameJson(previousPacketRef, resultingPacketRef)
+      || !sameJson(assignment, resultingAssignment)
+      || request.expectedCaseVersion !== previous.case_version
+      || action.previous_case_version !== previous.case_version
+      || action.resulting_case_version !== Number(previous.case_version) + 1
+      || resulting.case_version !== action.resulting_case_version
+      || resulting.updated_at !== action.occurred_at || !validInstant(action.occurred_at)
+      || fence.actorId !== action.actor_id || fence.authorityId !== action.authority_id
+      || fence.authorityVersion !== action.authority_version
+      || fence.municipalityCut !== previous.municipality_cut || fence.action !== actionType
+      || fence.evaluatedAt !== action.occurred_at
+      || !WORKFLOW_LEGAL_EFFECTS.has(String(action.legal_effect))
+      || !actorRoles.some((role) => allowedRoles.includes(role))
+      || (WORKFLOW_REVIEWER_ACTIONS.has(actionType)
+        && assignment?.reviewer_id !== action.actor_id)
+      || (actionType === "RecordOfficialDecision" && (
+        action.legal_effect !== "reflects_external_act"
+        || typeof action.outcome_code !== "string" || action.outcome_code.length === 0
+        || typeof action.external_reference !== "string" || action.external_reference.length === 0
+        || officialOutcome?.outcome_code !== action.outcome_code
+        || officialOutcome.external_reference !== action.external_reference
+        || officialOutcome.recorded_by !== action.actor_id
+        || officialOutcome.recorded_at !== action.occurred_at
+      ))
+      || (actionType === "CloseReview" && (
+        resulting.closed_at !== action.occurred_at
+        || (previous.last_action_type !== "NoObservations" && previous.official_outcome === undefined)
+      ))
+      || (actionType !== "CloseReview" && resulting.closed_at !== undefined)
+      || resulting.last_action_type !== actionType) failIntegrity();
+    const caseId = String(previous.case_id);
+    const actionId = String(action.action_id);
+    const actorId = String(action.actor_id);
+    const municipalityCut = String(previous.municipality_cut);
+    const occurredAt = Date.parse(String(action.occurred_at));
+    if (!IDENTIFIER.test(caseId) || !IDENTIFIER.test(actionId) || !IDENTIFIER.test(actorId)
+      || !CUT.test(municipalityCut)) failIntegrity();
+    const grants = await ctx.db.query("reviewWorkflowAuthorityGrants")
+      .withIndex("by_authorityId", (q) => q.eq("authorityId", String(fence.authorityId))).collect();
+    const grant = await uniqueByIndex(grants);
+    const now = Date.now();
+    if (!grant || grant.authorityVersion !== fence.authorityVersion || grant.actorId !== actorId
+      || grant.municipalityCut !== municipalityCut || !grant.permittedActions.includes(actionType as any)
+      || !sameSet(grant.roles, actorRoles) || Date.parse(grant.validFrom) > now
+      || (grant.validTo !== undefined && Date.parse(grant.validTo) < now)
+      || grant.revokedAt !== undefined) return { kind: "cas_conflict" as const };
+    const operation = await findWorkflowOperation(
+      ctx, actorId, actionType, String(request.operationKeySha256),
+    );
+    if (operation) {
+      if (operation.commandSha256 !== request.commandSha256
+        || operation.municipalityCut !== municipalityCut) {
+        return { kind: "operation_conflict" as const };
+      }
+      const operationActions = await ctx.db.query("reviewActions")
+        .withIndex("by_actionId", (q) => q.eq("actionId", operation.actionId)).collect();
+      const operationAction = await uniqueByIndex(operationActions);
+      if (!operationAction) failIntegrity();
+      const operationCases = await ctx.db.query("reviewCases").withIndex("by_case_version", (q) => q
+        .eq("caseId", operation.caseId)
+        .eq("caseVersion", operationAction.resultingCaseVersion)).collect();
+      const operationCase = await uniqueByIndex(operationCases);
+      if (!operationCase) failIntegrity();
+      return { kind: "replayed" as const, caseJson: operationCase.snapshotJson,
+        actionId: operation.actionId };
+    }
+    const priorRows = await ctx.db.query("reviewCases").withIndex("by_case_version", (q) => q
+      .eq("caseId", caseId).eq("caseVersion", Number(previous.case_version))).collect();
+    const prior = await uniqueByIndex(priorRows);
+    const activeRows = await ctx.db.query("reviewActiveCases").withIndex("by_case_version", (q) => q
+      .eq("caseId", caseId).eq("caseVersion", Number(previous.case_version))).collect();
+    const active = await uniqueByIndex(activeRows);
+    if (!prior || !active || prior.snapshotJson !== JSON.stringify(previous)
+      || prior.municipalityCut !== municipalityCut) return { kind: "cas_conflict" as const };
+    const duplicate = await ctx.db.query("reviewCases").withIndex("by_case_version", (q) => q
+      .eq("caseId", caseId).eq("caseVersion", Number(resulting.case_version))).collect();
+    const duplicateAction = await ctx.db.query("reviewActions")
+      .withIndex("by_actionId", (q) => q.eq("actionId", actionId)).collect();
+    if (duplicate.length || duplicateAction.length) return { kind: "cas_conflict" as const };
+    await touchWriteLock(ctx, now);
+    await ctx.db.insert("reviewCases", {
+      caseId, caseVersion: Number(resulting.case_version), municipalityCut,
+      licenseId: String(previous.license_id), status: String(resulting.status) as any,
+      snapshotJson: JSON.stringify(resulting), packetId: prior.packetId,
+      createdAt: prior.createdAt, updatedAt: occurredAt,
+    });
+    if (resulting.status === "closed") await ctx.db.delete(active._id);
+    else await ctx.db.patch(active._id, { caseVersion: Number(resulting.case_version) });
+    await ctx.db.insert("reviewActions", {
+      actionId, caseId, actionType: actionType as any,
+      resultingCaseVersion: Number(resulting.case_version), actorId,
+      legalEffect: String(action.legal_effect) as any,
+      actionJson: JSON.stringify(action), occurredAt,
+    });
+    await ctx.db.insert("reviewOperations", {
+      actorId, actionType: actionType as any,
+      operationKeySha256: String(request.operationKeySha256),
+      commandSha256: String(request.commandSha256), municipalityCut, caseId,
+      actionId, createdAt: occurredAt,
+    });
+    return { kind: "committed" as const, caseJson: JSON.stringify(resulting), actionId };
   },
 });

@@ -3,6 +3,7 @@ syntax = "proto3";
 package worldmonitor.integrity.v1;
 
 import "sebuf/http/annotations.proto";
+import "worldmonitor/integrity/v1/review_workflow.proto";
 import "worldmonitor/integrity/v1/search_patents.proto";
 
 // IntegrityService exposes the municipality-scoped administrative review workflow.
@@ -12,5 +13,25 @@ service IntegrityService {
   // SearchPatents returns the authenticated actor's municipal review queue.
   rpc SearchPatents(SearchPatentsRequest) returns (SearchPatentsResponse) {
     option (sebuf.http.config) = {path: "/search-patents", method: HTTP_METHOD_GET};
+  }
+
+  // OpenLicenseReview pins the selected release and persists its EvidencePacket.
+  rpc OpenLicenseReview(OpenLicenseReviewRequest) returns (ReviewMutationResponse) {
+    option (sebuf.http.config) = {path: "/open-license-review", method: HTTP_METHOD_POST};
+  }
+
+  // GetReviewCase returns one explicit case version; latest is never implicit.
+  rpc GetReviewCase(GetReviewCaseRequest) returns (ReviewCaseDossierResponse) {
+    option (sebuf.http.config) = {path: "/get-review-case", method: HTTP_METHOD_GET};
+  }
+
+  // AssignReviewer records a municipality-scoped reviewer assignment.
+  rpc AssignReviewer(AssignReviewerRequest) returns (ReviewMutationResponse) {
+    option (sebuf.http.config) = {path: "/assign-reviewer", method: HTTP_METHOD_POST};
+  }
+
+  // RecordReviewAction appends analysis, requests, recommendations, official outcomes or closure.
+  rpc RecordReviewAction(RecordReviewActionRequest) returns (ReviewMutationResponse) {
+    option (sebuf.http.config) = {path: "/record-review-action", method: HTTP_METHOD_POST};
   }
 }

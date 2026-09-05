@@ -41,6 +41,49 @@ export interface PatentQueueItem {
   limitationCodes: string[];
 }
 
+export interface OpenLicenseReviewRequest {
+  licenseId: string;
+  releaseId: string;
+  effectiveOn: string;
+}
+
+export interface ReviewMutationResponse {
+  caseId: string;
+  caseVersion: number;
+  status: string;
+  actionId: string;
+  actionType: string;
+  legalEffect: string;
+  replayed: boolean;
+}
+
+export interface GetReviewCaseRequest {
+  caseId: string;
+  caseVersion: number;
+}
+
+export interface ReviewCaseDossierResponse {
+  caseJson: string;
+  evidencePacketJson: string;
+  actionJson: string[];
+  permittedActions: string[];
+}
+
+export interface AssignReviewerRequest {
+  caseId: string;
+  expectedCaseVersion: number;
+  reviewerId: string;
+}
+
+export interface RecordReviewActionRequest {
+  caseId: string;
+  expectedCaseVersion: number;
+  actionType: string;
+  note: string;
+  outcomeCode: string;
+  externalReference: string;
+}
+
 export interface FieldViolation {
   field: string;
   description: string;
@@ -87,6 +130,10 @@ export interface RouteDescriptor {
 
 export interface IntegrityServiceHandler {
   searchPatents(ctx: ServerContext, req: SearchPatentsRequest): Promise<SearchPatentsResponse>;
+  openLicenseReview(ctx: ServerContext, req: OpenLicenseReviewRequest): Promise<ReviewMutationResponse>;
+  getReviewCase(ctx: ServerContext, req: GetReviewCaseRequest): Promise<ReviewCaseDossierResponse>;
+  assignReviewer(ctx: ServerContext, req: AssignReviewerRequest): Promise<ReviewMutationResponse>;
+  recordReviewAction(ctx: ServerContext, req: RecordReviewActionRequest): Promise<ReviewMutationResponse>;
 }
 
 export function createIntegrityServiceRoutes(
@@ -130,6 +177,183 @@ export function createIntegrityServiceRoutes(
 
           const result = await handler.searchPatents(ctx, body);
           return new Response(JSON.stringify(result as SearchPatentsResponse), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        } catch (err: unknown) {
+          if (err instanceof ValidationError) {
+            return new Response(JSON.stringify({ violations: err.violations }), {
+              status: 400,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+          if (options?.onError) {
+            return options.onError(err, req);
+          }
+          const message = err instanceof Error ? err.message : String(err);
+          return new Response(JSON.stringify({ message }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+      },
+    },
+    {
+      method: "POST",
+      path: "/api/integrity/v1/open-license-review",
+      handler: async (req: Request): Promise<Response> => {
+        try {
+          const pathParams: Record<string, string> = {};
+          const body = await req.json() as OpenLicenseReviewRequest;
+          if (options?.validateRequest) {
+            const bodyViolations = options.validateRequest("openLicenseReview", body);
+            if (bodyViolations) {
+              throw new ValidationError(bodyViolations);
+            }
+          }
+
+          const ctx: ServerContext = {
+            request: req,
+            pathParams,
+            headers: Object.fromEntries(req.headers.entries()),
+          };
+
+          const result = await handler.openLicenseReview(ctx, body);
+          return new Response(JSON.stringify(result as ReviewMutationResponse), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        } catch (err: unknown) {
+          if (err instanceof ValidationError) {
+            return new Response(JSON.stringify({ violations: err.violations }), {
+              status: 400,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+          if (options?.onError) {
+            return options.onError(err, req);
+          }
+          const message = err instanceof Error ? err.message : String(err);
+          return new Response(JSON.stringify({ message }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+      },
+    },
+    {
+      method: "GET",
+      path: "/api/integrity/v1/get-review-case",
+      handler: async (req: Request): Promise<Response> => {
+        try {
+          const pathParams: Record<string, string> = {};
+          const url = new URL(req.url, "http://localhost");
+          const params = url.searchParams;
+          const body: GetReviewCaseRequest = {
+            caseId: params.get("case_id") ?? "",
+            caseVersion: Number(params.get("case_version") ?? "0"),
+          };
+          if (options?.validateRequest) {
+            const bodyViolations = options.validateRequest("getReviewCase", body);
+            if (bodyViolations) {
+              throw new ValidationError(bodyViolations);
+            }
+          }
+
+          const ctx: ServerContext = {
+            request: req,
+            pathParams,
+            headers: Object.fromEntries(req.headers.entries()),
+          };
+
+          const result = await handler.getReviewCase(ctx, body);
+          return new Response(JSON.stringify(result as ReviewCaseDossierResponse), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        } catch (err: unknown) {
+          if (err instanceof ValidationError) {
+            return new Response(JSON.stringify({ violations: err.violations }), {
+              status: 400,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+          if (options?.onError) {
+            return options.onError(err, req);
+          }
+          const message = err instanceof Error ? err.message : String(err);
+          return new Response(JSON.stringify({ message }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+      },
+    },
+    {
+      method: "POST",
+      path: "/api/integrity/v1/assign-reviewer",
+      handler: async (req: Request): Promise<Response> => {
+        try {
+          const pathParams: Record<string, string> = {};
+          const body = await req.json() as AssignReviewerRequest;
+          if (options?.validateRequest) {
+            const bodyViolations = options.validateRequest("assignReviewer", body);
+            if (bodyViolations) {
+              throw new ValidationError(bodyViolations);
+            }
+          }
+
+          const ctx: ServerContext = {
+            request: req,
+            pathParams,
+            headers: Object.fromEntries(req.headers.entries()),
+          };
+
+          const result = await handler.assignReviewer(ctx, body);
+          return new Response(JSON.stringify(result as ReviewMutationResponse), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        } catch (err: unknown) {
+          if (err instanceof ValidationError) {
+            return new Response(JSON.stringify({ violations: err.violations }), {
+              status: 400,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+          if (options?.onError) {
+            return options.onError(err, req);
+          }
+          const message = err instanceof Error ? err.message : String(err);
+          return new Response(JSON.stringify({ message }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+      },
+    },
+    {
+      method: "POST",
+      path: "/api/integrity/v1/record-review-action",
+      handler: async (req: Request): Promise<Response> => {
+        try {
+          const pathParams: Record<string, string> = {};
+          const body = await req.json() as RecordReviewActionRequest;
+          if (options?.validateRequest) {
+            const bodyViolations = options.validateRequest("recordReviewAction", body);
+            if (bodyViolations) {
+              throw new ValidationError(bodyViolations);
+            }
+          }
+
+          const ctx: ServerContext = {
+            request: req,
+            pathParams,
+            headers: Object.fromEntries(req.headers.entries()),
+          };
+
+          const result = await handler.recordReviewAction(ctx, body);
+          return new Response(JSON.stringify(result as ReviewMutationResponse), {
             status: 200,
             headers: { "Content-Type": "application/json" },
           });

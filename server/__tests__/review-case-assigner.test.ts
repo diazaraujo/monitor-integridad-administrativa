@@ -225,7 +225,12 @@ describe('review case assigner', () => {
   it.each(['closed', 'waiting_external', 'in_review'] as const)(
     'does not assign a case in %s state',
     async (status) => {
-      const test = harness({ snapshot: snapshot({ status }) });
+      const test = harness({
+        snapshot: snapshot({
+          status,
+          ...(status === 'closed' ? { closed_at: NOW } : {}),
+        }),
+      });
       await expectKind(test.assigner.assignReviewer(command()), 'not_found_or_denied');
     },
   );

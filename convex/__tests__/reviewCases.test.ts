@@ -43,7 +43,7 @@ function commitRequest(overrides: Record<string, unknown> = {}) {
       capability: "patents.get",
       release_id: "release-001",
     }],
-    license: { license_id: "license-001" },
+    license: { license_id: "opaque-license-uuid", source_license_id: "license-001" },
     reproducibility: {
       packet_content_sha256: HASH,
       input_queries: [{
@@ -175,6 +175,50 @@ function assignmentRequest() {
       reviewerId: "reviewer-001", municipalityCut: "13101",
       evaluatedAt: "2026-08-29T12:00:00.000Z",
     },
+  };
+}
+
+function workflowRequest(
+  previous: Record<string, any>,
+  actionType = "NoObservations",
+  overrides: Record<string, unknown> = {},
+) {
+  const occurredAt = "2026-08-29T12:00:00.000Z";
+  const resulting = {
+    ...previous,
+    case_version: previous.case_version + 1,
+    status: actionType === "CloseReview" ? "closed"
+      : ["RequestMissingRequirement", "RequestCorrection"].includes(actionType)
+        ? "waiting_external" : "in_review",
+    updated_at: occurredAt,
+    last_action_type: actionType,
+    ...(actionType === "CloseReview" ? { closed_at: occurredAt } : {}),
+  };
+  const action = {
+    schema_version: "0.1.0", action_id: `action-${actionType}-${previous.case_version}`,
+    action_type: actionType, case_id: previous.case_id,
+    municipality_cut: previous.municipality_cut, license_id: previous.license_id,
+    previous_case_version: previous.case_version,
+    resulting_case_version: previous.case_version + 1,
+    actor_id: "reviewer-001", actor_roles: ["rentas"],
+    authority_id: "integrity:13101:reviewer-001", authority_version: 1,
+    occurred_at: occurredAt,
+    legal_effect: ["RequestMissingRequirement", "RequestCorrection"].includes(actionType)
+      ? "external_communication_only" : "none",
+    packet_ref: previous.packet_ref, command_sha256: "9".repeat(64),
+    note: actionType === "NoObservations" ? null : "Fundamento trazable",
+    outcome_code: null, external_reference: null,
+  };
+  return {
+    operationKeySha256: "8".repeat(64), commandSha256: "9".repeat(64),
+    expectedCaseVersion: previous.case_version, previousCaseSnapshot: previous,
+    resultingCaseSnapshot: resulting, action,
+    authorityFence: {
+      authorityId: "integrity:13101:reviewer-001", authorityVersion: 1,
+      actorId: "reviewer-001", municipalityCut: "13101",
+      action: actionType, evaluatedAt: occurredAt,
+    },
+    ...overrides,
   };
 }
 
@@ -421,5 +465,93 @@ describe("commercial-license review storage", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect((await response.json()).case_version).toBe(1);
+  });
+
+  test("provisions a workflow actor and appends a human action without mutating history", async () => {
+    const t = await harness();
+    await seedAssignment(t);
+    await t.mutation(reviewApi.commitAssignReviewer as any, { request: assignmentRequest() });
+    await t.mutation(reviewApi.provisionWorkflowActor as any, {
+      actorId: "reviewer-001", municipalityCut: "13101", authorityVersion: 1,
+      roles: ["rentas"], validFrom: "2026-01-01T00:00:00.000Z",
+    });
+    const previous = assignmentRequest().resultingCaseSnapshot;
+    const result = await t.mutation(reviewApi.commitReviewAction as any, {
+      request: workflowRequest(previous),
+    });
+    expect(result).toMatchObject({ kind: "committed", actionId: "action-NoObservations-2" });
+    const state = await t.run(async (ctx) => ({
+      cases: await ctx.db.query("reviewCases").collect(),
+      actions: await ctx.db.query("reviewActions").collect(),
+      active: await ctx.db.query("reviewActiveCases").collect(),
+    }));
+    expect(state.cases.map((row) => row.caseVersion)).toEqual([1, 2, 3]);
+    expect(state.actions).toHaveLength(3);
+    expect(state.active[0]?.caseVersion).toBe(3);
+    expect(JSON.parse(state.cases[1]!.snapshotJson).last_action_type).toBeUndefined();
+  });
+
+  test("closes only after a no-observations or official outcome action", async () => {
+    const t = await harness();
+    await seedAssignment(t);
+    await t.mutation(reviewApi.commitAssignReviewer as any, { request: assignmentRequest() });
+    await t.mutation(reviewApi.provisionWorkflowActor as any, {
+      actorId: "reviewer-001", municipalityCut: "13101", authorityVersion: 1,
+      roles: ["rentas"], validFrom: "2026-01-01T00:00:00.000Z",
+    });
+    await t.mutation(reviewApi.provisionWorkflowActor as any, {
+      actorId: "coordinator-close", municipalityCut: "13101", authorityVersion: 1,
+      roles: ["coordinator"], validFrom: "2026-01-01T00:00:00.000Z",
+    });
+    const assigned = assignmentRequest().resultingCaseSnapshot;
+    const premature = workflowRequest(assigned, "CloseReview", {
+      operationKeySha256: "6".repeat(64),
+    });
+    premature.action.actor_id = "coordinator-close";
+    premature.action.actor_roles = ["coordinator"];
+    premature.action.authority_id = "integrity:13101:coordinator-close";
+    premature.authorityFence.actorId = "coordinator-close";
+    premature.authorityFence.authorityId = "integrity:13101:coordinator-close";
+    await expect(t.mutation(reviewApi.commitReviewAction as any, { request: premature }))
+      .rejects.toThrow();
+    const observedRequest = workflowRequest(assigned);
+    await t.mutation(reviewApi.commitReviewAction as any, { request: observedRequest });
+    const observed = observedRequest.resultingCaseSnapshot;
+    const closeRequest = workflowRequest(observed, "CloseReview", {
+      operationKeySha256: "7".repeat(64),
+    });
+    closeRequest.action.actor_id = "coordinator-close";
+    closeRequest.action.actor_roles = ["coordinator"];
+    closeRequest.action.authority_id = "integrity:13101:coordinator-close";
+    closeRequest.authorityFence.actorId = "coordinator-close";
+    closeRequest.authorityFence.authorityId = "integrity:13101:coordinator-close";
+    expect(await t.mutation(reviewApi.commitReviewAction as any, { request: closeRequest }))
+      .toMatchObject({ kind: "committed" });
+    const active = await t.run(async (ctx) => await ctx.db.query("reviewActiveCases").collect());
+    expect(active).toHaveLength(0);
+  });
+
+  test("returns an exact-version dossier through a secret-authenticated no-store route", async () => {
+    const t = await harness();
+    await t.mutation(reviewApi.commitOpenLicenseReview as any, { request: commitRequest() });
+    await t.mutation(reviewApi.provisionWorkflowActor as any, {
+      actorId: "actor-001", municipalityCut: "13101", authorityVersion: 1,
+      roles: ["rentas"], validFrom: "2026-01-01T00:00:00.000Z",
+    });
+    const response = await t.fetch("/api/internal-review-case-dossier", {
+      method: "POST",
+      headers: { "content-type": "application/json",
+        "x-review-case-storage-secret": "review-storage-test-secret" },
+      body: JSON.stringify({ lookup: {
+        actorId: "actor-001", municipalityCut: "13101", caseId: "case-001",
+        caseVersion: 1, maxPacketBytes: 2 * 1024 * 1024,
+      } }),
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    const dossier = await response.json();
+    expect(JSON.parse(dossier.caseJson).case_version).toBe(1);
+    expect(dossier.actionJson).toHaveLength(1);
+    expect(JSON.parse(dossier.evidencePacketJson).case_id).toBe("case-001");
   });
 });

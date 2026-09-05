@@ -29,6 +29,10 @@ import {
 } from "./companyMonitoring/validators";
 
 const reviewRole = v.union(v.literal("rentas"), v.literal("control"));
+const reviewWorkflowRole = v.union(
+  v.literal("rentas"), v.literal("control"), v.literal("coordinator"),
+  v.literal("fiscalizacion"),
+);
 const reviewMarking = v.union(
   v.literal("PUBLIC"),
   v.literal("PII"),
@@ -44,6 +48,16 @@ const reviewRepresentation = v.union(
 const reviewActionType = v.union(
   v.literal("OpenLicenseReview"),
   v.literal("AssignReviewer"),
+  v.literal("NoObservations"),
+  v.literal("RequestMissingRequirement"),
+  v.literal("RecordAlternativeExplanation"),
+  v.literal("RecommendInspection"),
+  v.literal("RecommendReferral"),
+  v.literal("RecordInspectionOutcome"),
+  v.literal("RecommendAdministrativeMeasure"),
+  v.literal("RecordOfficialDecision"),
+  v.literal("RequestCorrection"),
+  v.literal("CloseReview"),
 );
 
 // Subscription status enum — maps Dodo statuses to our internal set
@@ -1748,6 +1762,24 @@ export default defineSchema({
   })
     .index("by_reviewer_municipality", ["reviewerId", "municipalityCut"]),
 
+  // Unified action authority used for post-assignment workflow transitions.
+  // It is deliberately separate from browser actor scopes: every write checks
+  // this persisted versioned fence in the same Convex transaction.
+  reviewWorkflowAuthorityGrants: defineTable({
+    authorityId: v.string(),
+    authorityVersion: v.number(),
+    actorId: v.string(),
+    municipalityCut: v.string(),
+    roles: v.array(reviewWorkflowRole),
+    permittedActions: v.array(reviewActionType),
+    validFrom: v.string(),
+    validTo: v.optional(v.string()),
+    revokedAt: v.optional(v.string()),
+    updatedAt: v.number(),
+  })
+    .index("by_authorityId", ["authorityId"])
+    .index("by_actor_municipality", ["actorId", "municipalityCut"]),
+
   // Low-volume MVP serialization point. Every authority update and review
   // opening reads and patches this singleton, covering first-insert races for
   // operation bindings, active targets and globally generated identifiers.
@@ -1772,7 +1804,10 @@ export default defineSchema({
     caseVersion: v.number(),
     municipalityCut: v.string(),
     licenseId: v.string(),
-    status: v.union(v.literal("open"), v.literal("in_review")),
+    status: v.union(
+      v.literal("open"), v.literal("in_review"),
+      v.literal("waiting_external"), v.literal("closed"),
+    ),
     snapshotJson: v.string(),
     packetId: v.string(),
     createdAt: v.number(),
@@ -1824,7 +1859,10 @@ export default defineSchema({
     actionType: reviewActionType,
     resultingCaseVersion: v.number(),
     actorId: v.string(),
-    legalEffect: v.literal("none"),
+    legalEffect: v.union(
+      v.literal("none"), v.literal("external_communication_only"),
+      v.literal("reflects_external_act"),
+    ),
     actionJson: v.string(),
     occurredAt: v.number(),
   })

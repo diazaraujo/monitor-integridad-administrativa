@@ -41,6 +41,49 @@ export interface PatentQueueItem {
   limitationCodes: string[];
 }
 
+export interface OpenLicenseReviewRequest {
+  licenseId: string;
+  releaseId: string;
+  effectiveOn: string;
+}
+
+export interface ReviewMutationResponse {
+  caseId: string;
+  caseVersion: number;
+  status: string;
+  actionId: string;
+  actionType: string;
+  legalEffect: string;
+  replayed: boolean;
+}
+
+export interface GetReviewCaseRequest {
+  caseId: string;
+  caseVersion: number;
+}
+
+export interface ReviewCaseDossierResponse {
+  caseJson: string;
+  evidencePacketJson: string;
+  actionJson: string[];
+  permittedActions: string[];
+}
+
+export interface AssignReviewerRequest {
+  caseId: string;
+  expectedCaseVersion: number;
+  reviewerId: string;
+}
+
+export interface RecordReviewActionRequest {
+  caseId: string;
+  expectedCaseVersion: number;
+  actionType: string;
+  note: string;
+  outcomeCode: string;
+  externalReference: string;
+}
+
 export interface FieldViolation {
   field: string;
   description: string;
@@ -122,6 +165,104 @@ export class IntegrityServiceClient {
     }
 
     return await resp.json() as SearchPatentsResponse;
+  }
+
+  async openLicenseReview(req: OpenLicenseReviewRequest, options?: IntegrityServiceCallOptions): Promise<ReviewMutationResponse> {
+    let path = "/api/integrity/v1/open-license-review";
+    const url = this.baseURL + path;
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...this.defaultHeaders,
+      ...options?.headers,
+    };
+
+    const resp = await this.fetchFn(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(req),
+      signal: options?.signal,
+    });
+
+    if (!resp.ok) {
+      return this.handleError(resp);
+    }
+
+    return await resp.json() as ReviewMutationResponse;
+  }
+
+  async getReviewCase(req: GetReviewCaseRequest, options?: IntegrityServiceCallOptions): Promise<ReviewCaseDossierResponse> {
+    let path = "/api/integrity/v1/get-review-case";
+    const params = new URLSearchParams();
+    if (req.caseId != null && req.caseId !== "") params.set("case_id", String(req.caseId));
+    if (req.caseVersion != null && req.caseVersion !== 0) params.set("case_version", String(req.caseVersion));
+    const url = this.baseURL + path + (params.toString() ? "?" + params.toString() : "");
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...this.defaultHeaders,
+      ...options?.headers,
+    };
+
+    const resp = await this.fetchFn(url, {
+      method: "GET",
+      headers,
+      signal: options?.signal,
+    });
+
+    if (!resp.ok) {
+      return this.handleError(resp);
+    }
+
+    return await resp.json() as ReviewCaseDossierResponse;
+  }
+
+  async assignReviewer(req: AssignReviewerRequest, options?: IntegrityServiceCallOptions): Promise<ReviewMutationResponse> {
+    let path = "/api/integrity/v1/assign-reviewer";
+    const url = this.baseURL + path;
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...this.defaultHeaders,
+      ...options?.headers,
+    };
+
+    const resp = await this.fetchFn(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(req),
+      signal: options?.signal,
+    });
+
+    if (!resp.ok) {
+      return this.handleError(resp);
+    }
+
+    return await resp.json() as ReviewMutationResponse;
+  }
+
+  async recordReviewAction(req: RecordReviewActionRequest, options?: IntegrityServiceCallOptions): Promise<ReviewMutationResponse> {
+    let path = "/api/integrity/v1/record-review-action";
+    const url = this.baseURL + path;
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...this.defaultHeaders,
+      ...options?.headers,
+    };
+
+    const resp = await this.fetchFn(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(req),
+      signal: options?.signal,
+    });
+
+    if (!resp.ok) {
+      return this.handleError(resp);
+    }
+
+    return await resp.json() as ReviewMutationResponse;
   }
 
   private async handleError(resp: Response): Promise<never> {

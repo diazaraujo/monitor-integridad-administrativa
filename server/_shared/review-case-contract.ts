@@ -58,6 +58,14 @@ const reviewCaseSnapshotSchema = z.object({
   updated_at: dateTime,
   packet_ref: packetRefSchema,
   assignment: reviewCaseAssignmentSchema.optional(),
+  last_action_type: z.string().min(1).max(80).optional(),
+  official_outcome: z.object({
+    outcome_code: z.string().min(1).max(100),
+    external_reference: z.string().min(1).max(500),
+    recorded_by: z.string().min(1).max(200),
+    recorded_at: dateTime,
+  }).strict().optional(),
+  closed_at: dateTime.optional(),
 }).strict().superRefine((value, context) => {
   if (Date.parse(value.updated_at) < Date.parse(value.created_at)) {
     context.addIssue({ code: 'custom', path: ['updated_at'], message: 'must not predate created_at' });
@@ -72,14 +80,20 @@ const reviewCaseSnapshotSchema = z.object({
       message: 'must fall within the case snapshot lifetime',
     });
   }
+  if (value.status === 'closed' && value.closed_at === undefined) {
+    context.addIssue({ code: 'custom', path: ['closed_at'], message: 'required for closed cases' });
+  }
+  if (value.status !== 'closed' && value.closed_at !== undefined) {
+    context.addIssue({ code: 'custom', path: ['closed_at'], message: 'only valid for closed cases' });
+  }
 });
 
 const historicalActionEvaluationSchema = z.object({
   action_id: nonEmpty,
   action_type: z.enum([
-    'OpenLicenseReview', 'AssignReviewer', 'RequestMissingRequirement', 'ResolveEstablishment',
+    'OpenLicenseReview', 'AssignReviewer', 'NoObservations', 'RequestMissingRequirement', 'ResolveEstablishment',
     'RecordAlternativeExplanation', 'RecommendInspection', 'RecordInspectionOutcome',
-    'RecommendAdministrativeMeasure', 'RecordOfficialDecision', 'RequestCorrection', 'CloseReview',
+    'RecommendReferral', 'RecommendAdministrativeMeasure', 'RecordOfficialDecision', 'RequestCorrection', 'CloseReview',
   ]),
   evaluated_at: dateTime,
   packet_reported_permitted: z.boolean(),
