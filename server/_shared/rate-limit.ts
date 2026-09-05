@@ -294,6 +294,12 @@ interface EndpointRatePolicy {
 // using checkEndpointRateLimit / hasEndpointRatePolicy below — the export is
 // for tooling, not new runtime callers.
 export const ENDPOINT_RATE_POLICIES: Record<string, EndpointRatePolicy> = {
+  // Human municipal workflow writes persist append-only case history. Keep
+  // each mutation bounded and fail closed so Redis degradation cannot remove
+  // the abuse fence in front of Convex storage.
+  '/api/integrity/v1/open-license-review': { limit: 60, window: '60 s' },
+  '/api/integrity/v1/assign-reviewer': { limit: 60, window: '60 s' },
+  '/api/integrity/v1/record-review-action': { limit: 60, window: '60 s' },
   // LLM article summarization is Pro-gated, but still needs a scoped,
   // fail-closed budget so Redis degradation cannot silently lift the
   // per-endpoint spend control.
@@ -523,6 +529,15 @@ interface RateLimitPolicyDecision {
 // defence. scripts/enforce-rate-limit-policies.mjs fails if any route listed
 // here can drift back to the gateway's availability-first global fallback.
 export const FAIL_CLOSED_ENDPOINT_RATE_POLICY_REQUIRED: Record<string, RateLimitPolicyDecision> = {
+  '/api/integrity/v1/open-license-review': {
+    reason: 'Authenticated case creation persists an immutable EvidencePacket and must remain bounded.',
+  },
+  '/api/integrity/v1/assign-reviewer': {
+    reason: 'Authenticated reviewer assignment appends persistent municipal case history.',
+  },
+  '/api/integrity/v1/record-review-action': {
+    reason: 'Authenticated review actions append persistent municipal case history and official outcomes.',
+  },
   '/api/news/v1/summarize-article': {
     reason: 'LLM-backed summarization can drive provider spend on cache misses.',
   },
